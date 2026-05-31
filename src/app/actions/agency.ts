@@ -1,6 +1,5 @@
 "use server";
 
-import mongoose from "mongoose";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/mongodb";
 import { generateApiKeyValue, hashApiKey } from "@/lib/api-auth";

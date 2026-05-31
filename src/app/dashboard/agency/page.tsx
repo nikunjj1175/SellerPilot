@@ -105,7 +105,7 @@ export default async function AgencyPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {storeStats.map(({ store, revenue, profit, returnRate, monthReports }) => (
+                  {storeStats.map(({ store, revenue, profit, returnRate }) => (
                     <tr key={store._id.toString()} className="border-b border-border/50">
                       <td className="py-3 pr-4 font-medium">{store.name}</td>
                       <td className="py-3 pr-4">{store.marketplace}</td>

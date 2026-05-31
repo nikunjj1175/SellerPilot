@@ -119,7 +119,7 @@ export async function getSkuCostRows(
   const pageSize = Math.min(100, Math.max(10, opts?.pageSize ?? 100));
   const search = opts?.search?.trim().toLowerCase();
 
-  let query: Record<string, unknown> = {
+  const query: Record<string, unknown> = {
     userId: new mongoose.Types.ObjectId(userId),
     reportId: reportObjectId,
   };

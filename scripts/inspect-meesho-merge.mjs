@@ -56,7 +56,7 @@ for (const s of sales.slice(0, 5)) {
     });
   }
 }
-console.log("Matched samples:", samples);
+console.log("Matched samples:", samples, `(${matched} of first 5)`);
 
 // How many gst sale match orders
 let m = 0;
