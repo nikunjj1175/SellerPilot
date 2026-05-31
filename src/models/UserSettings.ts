@@ -29,7 +29,7 @@ const UserSettingsSchema = new Schema<IUserSettings>(
     weeklyDigestEnabled: { type: Boolean, default: true },
     connectedMarketplaces: {
       type: [String],
-      enum: ["MEESHO", "FLIPKART", "AMAZON", "SHOPSY"],
+      enum: ["MEESHO"],
       default: ["MEESHO"],
     },
     lastReminderAt: Date,

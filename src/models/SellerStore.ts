@@ -19,7 +19,7 @@ const SellerStoreSchema = new Schema<ISellerStore>(
     name: { type: String, required: true },
     marketplace: {
       type: String,
-      enum: ["MEESHO", "FLIPKART", "AMAZON", "SHOPSY"],
+      enum: ["MEESHO"],
       default: "MEESHO",
     },
     externalSellerId: String,

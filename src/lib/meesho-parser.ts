@@ -18,6 +18,11 @@ export type ParsedOrderLine = {
   orderDate?: Date;
   state?: string;
   pincode?: string;
+  orderStatus?: string;
+  supplierPrice?: number;
+  size?: string;
+  productCost?: number;
+  packCost?: number;
 };
 
 export type StateOrderStats = {
@@ -46,6 +51,16 @@ export type ReportSummary = {
   netTaxableSales?: number;
   gstSaleTotal?: number;
   gstReturnTotal?: number;
+  /** Meesho: revenue ex-GST (taxable) */
+  grossRevenueExGst?: number;
+  /** Total GST collected — informational */
+  gstCollected?: number;
+  shippingExGst?: number;
+  productCostTotal?: number;
+  packCostTotal?: number;
+  /** Profit before product & pack costs (ex-GST) */
+  profitBeforeCosts?: number;
+  lossSkuCount?: number;
 };
 
 export function parseMeeshoCsv(csvText: string): {

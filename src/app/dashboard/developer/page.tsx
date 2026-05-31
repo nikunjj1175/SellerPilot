@@ -58,7 +58,7 @@ export default async function DeveloperPage() {
             <p className="text-muted-foreground font-sans mb-1">Upload CSV (multipart)</p>
             <code>POST {APP_URL}/api/v1/reports</code>
             <p className="font-sans text-muted-foreground mt-1">
-              Fields: file, marketplace (MEESHO|FLIPKART|AMAZON|SHOPSY), name, type, storeId (optional)
+              Fields: ordersFile, gstSaleFile, gstReturnFile, marketplace=MEESHO, name, type, storeId (optional)
             </p>
           </div>
           <pre className="rounded-lg bg-muted p-4 text-xs overflow-x-auto font-sans">{`curl -X POST "${APP_URL}/api/v1/reports" \\

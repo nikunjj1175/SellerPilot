@@ -1,135 +1,218 @@
 "use client";
 
 import { deleteReport } from "@/app/actions/reports";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatINR } from "@/lib/utils";
+import { formatINR, formatPct } from "@/lib/utils";
 import type { ClientReport } from "@/types/report";
 import type { ReportStatus } from "@/types/enums";
-import { ReportNotifyButtons } from "@/components/dashboard/report-notify-buttons";
-import { Trash2, Download, FileSpreadsheet, FileText, Sparkles, Eye } from "lucide-react";
+import { Trash2, FileSpreadsheet, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useTransition } from "react";
 import Link from "next/link";
 import type { ReportSummary } from "@/lib/meesho-parser";
 
-const statusColors: Record<ReportStatus, string> = {
-  PENDING: "bg-yellow-500/10 text-yellow-600",
-  PROCESSING: "bg-blue-500/10 text-blue-600",
-  COMPLETED: "bg-emerald-500/10 text-emerald-600",
-  FAILED: "bg-red-500/10 text-red-600",
+const statusBadge: Record<ReportStatus, string> = {
+  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
+  PROCESSING: "bg-blue-100 text-blue-800 border-blue-200",
+  COMPLETED: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  FAILED: "bg-red-100 text-red-800 border-red-200",
 };
 
 export function ReportsList({ reports }: { reports: ClientReport[] }) {
   const [pending, startTransition] = useTransition();
+  const completed = reports.filter((r) => r.status === "COMPLETED");
 
   if (!reports.length) {
     return (
-      <Card className="border-dashed border-primary/30">
-        <CardContent className="py-12 text-center space-y-4">
-          <p className="text-muted-foreground">No reports yet. Upload your first CSV above.</p>
-          <p className="text-sm text-muted-foreground">
-            Pahela idea joie?{" "}
-            <Link href="/demo-report" className="text-primary font-medium hover:underline">
-              Demo report joi lo (free)
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-12 text-center space-y-4">
+        <p className="text-muted-foreground">No reports yet. Upload your Meesho files above.</p>
+        <Link href="/demo-report" className="text-primary font-medium hover:underline text-sm">
+          Demo report joi lo (free) →
+        </Link>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {reports.map((report) => {
-        const summary = report.summary as ReportSummary | null;
-        return (
-          <Card key={report.id}>
-            <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
-              <div>
-                <CardTitle className="text-base">{report.name}</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {report.marketplace} · {new Date(report.createdAt).toLocaleString("en-IN")} ·{" "}
-                  {report.creditsUsed} credits
-                </p>
-              </div>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[report.status]}`}>
-                {report.status}
-              </span>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center justify-between gap-4">
-              {summary && report.status === "COMPLETED" ? (
-                <div className="flex gap-6 text-sm">
-                  <span>Revenue: {formatINR(summary.grossRevenue)}</span>
-                  <span className={summary.netProfit >= 0 ? "text-emerald-600" : "text-red-500"}>
-                    Profit: {formatINR(summary.netProfit)}
-                  </span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg font-bold">Available Reports</h2>
+        <span className="text-xs text-muted-foreground">{completed.length} completed</span>
+      </div>
+
+      <div className="rounded-2xl border border-border/80 bg-card shadow-sm overflow-hidden">
+        {reports.map((report, idx) => {
+          const summary = report.summary as ReportSummary | null;
+          const isCompleted = report.status === "COMPLETED" && summary;
+          const sales =
+            summary?.netTaxableSales ?? summary?.grossRevenueExGst ?? summary?.grossRevenue ?? 0;
+          const netProfit = summary?.netProfit ?? 0;
+          const lossSkus = summary?.lossSkuCount ?? 0;
+          const rtoPct = summary?.rtoRate ?? 0;
+          const returnPct = summary?.returnRate ?? 0;
+          const monthLabel = new Date(report.createdAt).toLocaleDateString("en-IN", {
+            month: "long",
+            year: "numeric",
+          });
+
+          return (
+            <div
+              key={report.id}
+              className={`p-5 md:p-6 ${idx > 0 ? "border-t border-border/60" : ""}`}
+            >
+              <div className="flex flex-col xl:flex-row xl:items-center gap-6">
+                <div className="flex-1 min-w-[200px] space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Monthly P&L Report
+                  </p>
+                  <h3 className="font-display text-xl font-bold">{report.name || monthLabel}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Generated{" "}
+                    {new Date(report.createdAt).toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadge[report.status]}`}
+                    >
+                      {report.status === "COMPLETED" ? "Completed" : report.status}
+                    </span>
+                    {isCompleted && (
+                      <>
+                        <span className="rounded-full border border-primary/40 text-primary px-2.5 py-0.5 text-xs font-medium">
+                          Full Report
+                        </span>
+                        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+                          Meesho · {report.creditsUsed} credits
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              ) : report.error ? (
-                <p className="text-sm text-red-500">{report.error}</p>
-              ) : null}
-              <div className="flex gap-2">
-                {report.status === "COMPLETED" && (
-                  <>
-                    <Button variant="default" size="sm" asChild>
-                      <Link href={`/dashboard/reports/${report.id}`}>
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/dashboard/analytics?report=${report.id}`}>P&L</Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/dashboard/insights?report=${report.id}`}>
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        AI
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={`/api/reports/${report.id}/export?format=excel`}>
-                        <FileSpreadsheet className="h-3 w-3 mr-1" />
-                        Excel
-                      </a>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={`/api/reports/${report.id}/export?format=pdf`} target="_blank">
-                        <FileText className="h-3 w-3 mr-1" />
-                        PDF
-                      </a>
-                    </Button>
-                    <ReportNotifyButtons reportId={report.id} />
-                  </>
+
+                {isCompleted ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+                    {[
+                      {
+                        label: "Net Profit",
+                        value: formatINR(netProfit),
+                        className: netProfit >= 0 ? "text-emerald-600" : "text-red-500",
+                      },
+                      { label: "Sales", value: formatINR(sales), className: "" },
+                      {
+                        label: "Loss SKUs",
+                        value: String(lossSkus),
+                        className: lossSkus > 0 ? "text-red-500" : "",
+                      },
+                      {
+                        label: "RTO / Returns",
+                        value: `${formatPct(rtoPct)} / ${formatPct(returnPct)}`,
+                        className: "text-sm",
+                      },
+                    ].map((m) => (
+                      <div
+                        key={m.label}
+                        className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-center"
+                      >
+                        <p className="text-[10px] uppercase text-muted-foreground font-medium">
+                          {m.label}
+                        </p>
+                        <p className={`font-display font-bold text-lg mt-1 ${m.className}`}>
+                          {m.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : report.error ? (
+                  <p className="text-sm text-red-500 flex-1">{report.error}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground animate-pulse flex-1">Processing…</p>
                 )}
-                {report.status === "PROCESSING" && (
-                  <span className="text-xs text-muted-foreground animate-pulse">Processing...</span>
-                )}
-                {report.blobUrl && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={report.blobUrl} target="_blank" rel="noreferrer">
-                      <Download className="h-4 w-4" />
-                    </a>
+
+                <div className="flex flex-col items-stretch sm:items-end gap-2 shrink-0 min-w-[180px]">
+                  {isCompleted && (
+                    <>
+                      <Button className="rounded-xl shadow-md w-full sm:w-auto" asChild>
+                        <Link href={`/dashboard/reports/${report.id}`}>Open P&L Report</Link>
+                      </Button>
+                      <div className="flex flex-wrap gap-3 text-xs justify-end">
+                        <Link
+                          href={`/dashboard/product-costs?report=${report.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          Edit SKU Costs
+                        </Link>
+                        <a
+                          href={`/api/reports/${report.id}/export?format=pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          Download PDF
+                        </a>
+                        <a
+                          href={`/api/reports/${report.id}/export?format=excel`}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <FileSpreadsheet className="h-3 w-3 inline mr-0.5" />
+                          Excel
+                        </a>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-right">
+                        Add product costs for true net profit
+                      </p>
+                    </>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-500 self-end"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const res = await deleteReport(report.id);
+                        if (res.error) toast.error(res.error);
+                        else toast.success("Report deleted");
+                      })
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      const res = await deleteReport(report.id);
-                      if (res.error) toast.error(res.error);
-                      else toast.success("Report deleted");
-                    })
-                  }
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function ReportsPageHeader() {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 className="font-display text-2xl md:text-3xl font-bold">Your Reports</h1>
+        <p className="text-muted-foreground mt-1">
+          Access your monthly P&L statements and manage product costs.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" className="rounded-xl" asChild>
+          <Link href="/demo-report">View Sample Report</Link>
+        </Button>
+        <Button className="rounded-xl shadow-md" asChild>
+          <Link href="#upload">
+            <Plus className="h-4 w-4 mr-1" />
+            Generate New P&L Report
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

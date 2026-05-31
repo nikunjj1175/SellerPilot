@@ -29,7 +29,7 @@ const ReportSchema = new Schema<IReport>(
     name: { type: String, required: true },
     marketplace: {
       type: String,
-      enum: ["MEESHO", "FLIPKART", "AMAZON", "SHOPSY"],
+      enum: ["MEESHO"],
       default: "MEESHO",
       index: true,
     },

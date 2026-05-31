@@ -19,6 +19,11 @@ export interface IOrderLine {
   orderDate?: Date;
   state?: string;
   pincode?: string;
+  orderStatus?: string;
+  supplierPrice?: number;
+  size?: string;
+  productCost?: number;
+  packCost?: number;
 }
 
 const OrderLineSchema = new Schema<IOrderLine>({
@@ -39,6 +44,11 @@ const OrderLineSchema = new Schema<IOrderLine>({
   orderDate: Date,
   state: { type: String, index: true },
   pincode: String,
+  orderStatus: String,
+  supplierPrice: { type: Number, default: 0 },
+  size: String,
+  productCost: { type: Number, default: 0 },
+  packCost: { type: Number, default: 0 },
 });
 
 export const OrderLine = models.OrderLine ?? model<IOrderLine>("OrderLine", OrderLineSchema);

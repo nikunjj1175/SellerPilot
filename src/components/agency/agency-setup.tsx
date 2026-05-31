@@ -23,7 +23,7 @@ export function AgencySetup() {
       }}
     >
       <p className="text-sm text-muted-foreground">
-        Manage multiple Meesho / Flipkart / Amazon stores from one dashboard (Agency plan).
+        Manage multiple Meesho seller stores from one dashboard (Agency plan).
       </p>
       <div className="space-y-2">
         <Label htmlFor="name">Agency / Company name</Label>
