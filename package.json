@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "lint:next": "next lint",
     "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
