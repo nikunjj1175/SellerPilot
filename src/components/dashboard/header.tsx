@@ -16,9 +16,11 @@ export function DashboardHeader() {
         <p className="font-semibold">{session?.user?.name ?? session?.user?.email}</p>
       </div>
       <div className="flex items-center gap-2">
-        <div className="hidden items-center gap-1 rounded-lg bg-muted px-3 py-1.5 text-sm sm:flex">
-          <Coins className="h-4 w-4 text-primary" />
-          <span>{session?.user?.credits ?? 0} credits</span>
+        <div className="hidden items-center gap-1.5 rounded-full border border-amber-200/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-sm sm:flex">
+          <Coins className="h-4 w-4 text-amber-600" />
+          <span className="font-medium">
+            Credits: <span className="text-amber-700 dark:text-amber-400">{session?.user?.credits ?? 0}</span>
+          </span>
         </div>
         <Button
           variant="ghost"

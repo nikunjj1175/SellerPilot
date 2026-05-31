@@ -1,5 +1,6 @@
 import { parseMeeshoCsv, aggregateBySku } from "@/lib/meesho-parser";
 import { generateInsights } from "@/lib/ai-insights";
+import { buildMeeshoAnalytics } from "@/lib/meesho-analytics";
 import type { ReportDetailData } from "@/lib/report-data";
 
 const DEMO_CSV = `Order ID,SKU,Product Name,Quantity,Sale Amount,Commission,Shipping,Return Amount,RTO Amount,GST,Status,Order Date,State,Pincode
@@ -41,18 +42,23 @@ export function getDemoReportData(): ReportDetailData {
 
   const { lines, summary } = parseMeeshoCsv(DEMO_CSV);
   const insights = generateInsights(lines, summary);
+  const orders = lines.map((l) => ({
+    ...l,
+    orderStatus: l.isRto ? "RTO" : l.isReturn ? "RETURN" : "DELIVERED",
+  }));
 
   cached = {
     id: "demo",
-    name: "Demo — Jan 2026 Meesho Settlement",
-    marketplace: "MEESHO",
+    name: "Demo — Jan 2026 Meesho P&L",
     createdAt: new Date("2026-02-03").toISOString(),
     summary,
     ordersByState: summary.ordersByState ?? [],
     skuData: aggregateBySku(lines),
-    sampleOrders: lines,
+    orders,
+    analytics: buildMeeshoAnalytics(orders, summary, lines.length),
     insights,
     isDemo: true,
+    orderRowCount: lines.length,
   };
 
   return cached;

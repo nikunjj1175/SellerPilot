@@ -6,6 +6,7 @@ export { SellerStore } from "./SellerStore";
 export { ApiKey } from "./ApiKey";
 export { Report } from "./Report";
 export { OrderLine } from "./OrderLine";
+export { ProductSkuCost } from "./ProductSkuCost";
 export { CreditPackage } from "./CreditPackage";
 export { CreditTransaction } from "./CreditTransaction";
 export { Coupon } from "./Coupon";

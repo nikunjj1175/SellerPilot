@@ -8,6 +8,7 @@ import {
   type ReportSummary,
   type StateOrderStats,
 } from "@/lib/meesho-parser";
+import { buildMeeshoAnalytics, type MeeshoReportAnalytics } from "@/lib/meesho-analytics";
 import type { AiInsightsResult } from "@/lib/ai-insights";
 
 function toParsedLine(l: {
@@ -27,6 +28,11 @@ function toParsedLine(l: {
   orderDate?: Date;
   state?: string;
   pincode?: string;
+  orderStatus?: string;
+  supplierPrice?: number;
+  size?: string;
+  productCost?: number;
+  packCost?: number;
 }): ParsedOrderLine {
   return { ...l };
 }
@@ -34,14 +40,15 @@ function toParsedLine(l: {
 export type ReportDetailData = {
   id: string;
   name: string;
-  marketplace: string;
   createdAt: string;
   summary: ReportSummary;
   ordersByState: StateOrderStats[];
   skuData: ReturnType<typeof aggregateBySku>;
-  sampleOrders: ParsedOrderLine[];
+  orders: ParsedOrderLine[];
+  analytics: MeeshoReportAnalytics;
   insights: AiInsightsResult | null;
   isDemo?: boolean;
+  orderRowCount?: number;
 };
 
 export async function getReportDetail(
@@ -57,7 +64,7 @@ export async function getReportDetail(
 
   if (!report?.summary) return null;
 
-  const lines = await OrderLine.find({ reportId: report._id }).limit(5000).lean();
+  const lines = await OrderLine.find({ reportId: report._id }).limit(10000).lean();
   const parsed = lines.map((l) =>
     toParsedLine({
       orderId: l.orderId,
@@ -76,6 +83,11 @@ export async function getReportDetail(
       orderDate: l.orderDate,
       state: l.state,
       pincode: l.pincode,
+      orderStatus: l.orderStatus,
+      supplierPrice: l.supplierPrice,
+      size: l.size,
+      productCost: l.productCost,
+      packCost: l.packCost,
     })
   );
 
@@ -83,16 +95,19 @@ export async function getReportDetail(
   const ordersByState =
     summary.ordersByState?.length ? summary.ordersByState : aggregateByState(parsed);
 
+  const orderRowCount = summary.totalOrders || parsed.length;
+
   return {
     id: report._id.toString(),
     name: report.name,
-    marketplace: report.marketplace ?? "MEESHO",
     createdAt: report.createdAt.toISOString(),
     summary,
     ordersByState,
     skuData: aggregateBySku(parsed),
-    sampleOrders: parsed.slice(0, 50),
+    orders: parsed,
+    analytics: buildMeeshoAnalytics(parsed, summary, orderRowCount),
     insights: (report.insights as AiInsightsResult | null) ?? null,
+    orderRowCount,
   };
 }
 
@@ -100,47 +115,12 @@ export async function getUserCompletedReports(userId: string) {
   await connectDB();
   return Report.find({ userId, status: "COMPLETED" })
     .sort({ createdAt: -1 })
-    .select("name marketplace createdAt")
-    .lean<Pick<IReport, "name" | "marketplace" | "createdAt" | "_id">[]>();
+    .select("name createdAt")
+    .lean<Pick<IReport, "name" | "createdAt" | "_id">[]>();
 }
 
+/** @deprecated Old analytics routes redirect to tabbed report hub */
 export async function getReportAnalytics(userId: string, reportId?: string) {
-  await connectDB();
-  const report = reportId
-    ? await Report.findOne({ _id: reportId, userId, status: "COMPLETED" }).lean<IReport | null>()
-    : await Report.findOne({ userId, status: "COMPLETED" })
-        .sort({ createdAt: -1 })
-        .lean<IReport | null>();
-
-  if (!report?.summary) return null;
-
-  const lines = await OrderLine.find({ reportId: report._id }).limit(5000).lean();
-  const parsed = lines.map((l) =>
-    toParsedLine({
-      orderId: l.orderId,
-      sku: l.sku,
-      productName: l.productName,
-      quantity: l.quantity,
-      saleAmount: l.saleAmount,
-      shipping: l.shipping,
-      commission: l.commission,
-      returnAmount: l.returnAmount,
-      rtoAmount: l.rtoAmount,
-      gst: l.gst,
-      netProfit: l.netProfit,
-      isReturn: l.isReturn,
-      isRto: l.isRto,
-      orderDate: l.orderDate,
-      state: l.state,
-      pincode: l.pincode,
-    })
-  );
-
-  return {
-    report,
-    summary: report.summary as ReportSummary,
-    skuData: aggregateBySku(parsed),
-    ordersByState:
-      (report.summary as ReportSummary).ordersByState ?? aggregateByState(parsed),
-  };
+  if (!reportId) return null;
+  return getReportDetail(userId, reportId);
 }

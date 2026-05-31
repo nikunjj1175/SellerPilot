@@ -7,11 +7,14 @@ import Link from "next/link";
 
 export default async function ReportDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const { tab } = await searchParams;
 
   const [data, reports] = await Promise.all([
     getReportDetail(session.user.id, id),
@@ -28,7 +31,7 @@ export default async function ReportDetailPage({
         basePath="/dashboard/reports"
         linkMode="path"
       />
-      <ReportDetailView data={data} credits={session.user.credits ?? 0} />
+      <ReportDetailView data={data} credits={session.user.credits ?? 0} defaultTab={tab} />
       <p className="text-center text-sm text-muted-foreground">
         <Link href="/dashboard/reports" className="text-primary hover:underline">
           ← Back to all reports

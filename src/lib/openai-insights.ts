@@ -40,7 +40,7 @@ export async function generateEnhancedInsights(
           {
             role: "system",
             content:
-              "You are an expert Indian e-commerce seller consultant for Meesho, Flipkart, Amazon. Respond ONLY with valid JSON.",
+              "You are an expert Indian e-commerce seller consultant for Meesho. Respond ONLY with valid JSON.",
           },
           {
             role: "user",

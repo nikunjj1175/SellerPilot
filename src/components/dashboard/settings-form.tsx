@@ -5,7 +5,7 @@ import { updateUserSettings } from "@/app/actions/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MARKETPLACES, type Marketplace } from "@/types/enums";
+import { type Marketplace } from "@/types/enums";
 import { toast } from "sonner";
 type SettingsData = {
   meeshoSellerId?: string;
@@ -43,22 +43,10 @@ export function SettingsForm({
         });
       }}
     >
+      <input type="hidden" name="marketplaces" value="MEESHO" />
       <div className="space-y-3">
-        <h3 className="font-semibold">Marketplaces</h3>
-        <p className="text-sm text-muted-foreground">Select platforms you sell on</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {MARKETPLACES.map((m) => (
-            <label key={m.id} className="flex items-center gap-2 text-sm border border-border rounded-lg p-3">
-              <input
-                type="checkbox"
-                name="marketplaces"
-                value={m.id}
-                defaultChecked={settings.connectedMarketplaces.includes(m.id)}
-              />
-              {m.label}
-            </label>
-          ))}
-        </div>
+        <h3 className="font-semibold">Platform</h3>
+        <p className="text-sm text-muted-foreground">SellerPilot is built for Meesho sellers only.</p>
       </div>
 
       <div className="space-y-3 border-t border-border pt-6">

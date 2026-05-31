@@ -2,6 +2,7 @@ import { put } from "@vercel/blob";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { User, Report, OrderLine, CreditTransaction } from "@/models";
+import { seedSkuCostsFromOrderLines } from "@/lib/product-costs";
 import { parseMarketplaceCsv } from "@/lib/marketplace-parser";
 import { parseMeeshoFromFiles } from "@/lib/meesho-merge-parser";
 import type { Marketplace } from "@/types/enums";
@@ -133,9 +134,16 @@ export async function processReportJob(payload: {
         orderDate: line.orderDate,
         state: line.state,
         pincode: line.pincode,
+        orderStatus: line.orderStatus,
+        supplierPrice: line.supplierPrice,
+        size: line.size,
+        productCost: 0,
+        packCost: 0,
       }));
       await OrderLine.insertMany(batch);
     }
+
+    await seedSkuCostsFromOrderLines(userObjectId, reportObjectId);
 
     await notifyReportReady(userId, reportId);
 

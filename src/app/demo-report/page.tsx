@@ -12,7 +12,12 @@ export const metadata = {
     "Free demo Meesho P&L report — state-wise map, SKU analytics, returns, RTO & AI insights. No login or credits needed.",
 };
 
-export default function DemoReportPage() {
+export default async function DemoReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
   const data = getDemoReportData();
   const stateCount = data.ordersByState.length;
   const totalOrders = data.summary.totalOrders;
@@ -77,7 +82,7 @@ export default function DemoReportPage() {
           </CardContent>
         </Card>
 
-        <ReportDetailView data={data} />
+        <ReportDetailView data={data} defaultTab={tab} />
       </main>
     </div>
   );
