@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getDemoReportData } from "@/lib/demo-report";
 import { ReportDetailView } from "@/components/dashboard/report-detail-view";
 import { MeshBackground } from "@/components/landing/mesh-background";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,12 +28,7 @@ export default async function DemoReportPage({
       <MeshBackground />
       <header className="sticky top-0 z-50 border-b border-border/60 glass">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link href="/" className="font-display font-bold flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-primary-foreground text-sm shadow-md">
-              S
-            </span>
-            SellerPilot
-          </Link>
+          <Logo href="/" size="sm" />
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" asChild>
               <Link href="/">
@@ -63,7 +59,7 @@ export default async function DemoReportPage({
               <p className="text-xs uppercase tracking-widest text-primary font-semibold">
                 100% Free · No login · No credits
               </p>
-              <h1 className="font-display text-2xl md:text-3xl font-bold mt-1">
+              <h1 className="font-semibold text-2xl md:text-3xl font-bold mt-1">
                 Demo Report Preview
               </h1>
               <p className="text-muted-foreground mt-2 max-w-xl">

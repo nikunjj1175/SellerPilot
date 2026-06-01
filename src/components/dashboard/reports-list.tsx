@@ -13,7 +13,7 @@ import Link from "next/link";
 import type { ReportSummary } from "@/lib/meesho-parser";
 
 const statusBadge: Record<ReportStatus, string> = {
-  PENDING: "bg-amber-50 text-amber-800 border-amber-200",
+  PENDING: "bg-violet-50 text-violet-800 border-violet-200 dark:bg-violet-950/40 dark:text-violet-200 dark:border-violet-800",
   PROCESSING: "bg-sky-50 text-sky-800 border-sky-200",
   COMPLETED: "bg-emerald-50 text-emerald-800 border-emerald-200",
   FAILED: "bg-red-50 text-red-800 border-red-200",
@@ -48,9 +48,9 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
   if (!reports.length) {
     return (
       <section className="mt-8 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-600">Available Reports</h2>
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center shadow-sm">
-          <p className="text-slate-600 mb-4">No reports yet. Generate your first monthly P&L.</p>
+        <h2 className="text-sm font-semibold text-muted-foreground">Available reports</h2>
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 sm:p-14 text-center shadow-sm">
+          <p className="text-muted-foreground mb-4">No reports yet. Generate your first monthly P&L.</p>
           <Button className="rounded-xl" asChild>
             <Link href="/dashboard/reports/new">
               <Plus className="h-4 w-4 mr-1" />
@@ -65,11 +65,11 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
   return (
     <section className="mt-8 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-600">Available Reports</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Available reports</h2>
         <span className="text-xs text-muted-foreground">{completed.length} completed</span>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {reports.map((report, idx) => {
           const summary = report.summary as ReportSummary | null;
           const isCompleted = report.status === "COMPLETED" && summary;
@@ -84,17 +84,17 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
           return (
             <article
               key={report.id}
-              className={`p-6 md:p-8 ${idx > 0 ? "border-t border-slate-100" : ""}`}
+              className={`p-5 sm:p-6 md:p-8 ${idx > 0 ? "border-t border-border" : ""}`}
             >
               <div className="flex flex-col xl:flex-row xl:items-center gap-8">
                 <div className="flex-1 min-w-[200px] space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.15em] text-slate-500 font-semibold">
-                    Monthly P&L Report
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Monthly P&L report
                   </p>
-                  <h3 className="font-display text-3xl md:text-[2rem] font-bold text-[#5b2d82] leading-none">
+                  <h3 className="text-2xl sm:text-3xl font-semibold text-primary leading-none">
                     {period}
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Generated {reportGeneratedAt(report.createdAt)}
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -130,24 +130,24 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                       {
                         label: "Sales",
                         value: formatINR(sales),
-                        valueClass: "text-slate-800",
+                        valueClass: "text-foreground",
                       },
                       {
                         label: "Loss SKUs",
                         value: String(lossSkus),
-                        valueClass: lossSkus > 0 ? "text-red-600" : "text-slate-800",
+                        valueClass: lossSkus > 0 ? "text-red-600" : "text-foreground",
                       },
                       {
                         label: "RTO / Returns",
                         value: `${formatPct(rtoPct)} / ${formatPct(returnPct)}`,
-                        valueClass: "text-slate-800 text-sm md:text-base",
+                        valueClass: "text-foreground text-sm md:text-base",
                       },
                     ].map((m) => (
                       <div
                         key={m.label}
-                        className="rounded-lg border border-slate-200 bg-slate-50/50 px-2 py-3 text-center min-h-[72px] flex flex-col justify-center"
+                        className="rounded-lg border border-border bg-muted/50 px-2 py-3 text-center min-h-[72px] flex flex-col justify-center"
                       >
-                        <p className="text-[10px] uppercase tracking-wide text-slate-500 font-medium">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                           {m.label}
                         </p>
                         <p className={`font-bold text-lg mt-1 tabular-nums ${m.valueClass}`}>
@@ -159,14 +159,14 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                 ) : report.error ? (
                   <p className="text-sm text-red-600 flex-1">{report.error}</p>
                 ) : (
-                  <p className="text-sm text-slate-500 animate-pulse flex-1">Processing…</p>
+                  <p className="text-sm text-muted-foreground animate-pulse flex-1">Processing…</p>
                 )}
 
                 <div className="flex flex-col items-stretch xl:items-end gap-2 shrink-0 w-full xl:w-[220px]">
                   {isCompleted && (
                     <>
                       <Button
-                        className="rounded-xl h-12 w-full font-semibold text-base shadow-sm bg-[#5b2d82] hover:bg-[#4a2469]"
+                        className="rounded-xl h-12 w-full font-semibold text-base shadow-sm"
                         asChild
                       >
                         <Link href={`/dashboard/reports/${report.id}`}>Open P&L Report</Link>
@@ -176,7 +176,7 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                           href={`/api/reports/${report.id}/export?format=pdf`}
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded-xl border border-slate-200 bg-white px-2 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                          className="rounded-xl border border-border bg-card px-2 py-3 text-center text-sm font-medium text-foreground hover:bg-muted transition"
                         >
                           Download PDF
                         </a>
@@ -193,19 +193,19 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                           )}
                         </Link>
                       </div>
-                      <p className="text-[10px] text-slate-400 text-right w-full pt-1">
+                      <p className="text-[10px] text-muted-foreground text-right w-full pt-1">
                         Add previous month to compare trends
                       </p>
                       <div className="flex justify-end gap-3 text-[11px] w-full">
                         <Link
                           href={`/dashboard/product-costs?report=${report.id}`}
-                          className="text-[#5b2d82] hover:underline"
+                          className="text-primary hover:underline"
                         >
                           Edit SKU Costs
                         </Link>
                         <button
                           type="button"
-                          className="text-slate-400 hover:text-red-600"
+                          className="text-muted-foreground hover:text-red-600"
                           disabled={pending}
                           onClick={() =>
                             startTransition(async () => {
@@ -234,23 +234,21 @@ export function ReportsPageHeader() {
   return (
     <header className="flex flex-wrap items-start justify-between gap-4 pb-1">
       <div>
-        <h1 className="font-display text-2xl md:text-[1.75rem] font-bold text-slate-900 tracking-tight">
-          Your Reports
-        </h1>
-        <p className="text-slate-500 mt-1 text-sm">
-          Access your monthly P&L statements and request past data.
+        <h1 className="h1 text-foreground">Your reports</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Monthly P&L statements and past uploads.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
-          className="rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50 h-10"
+          className="rounded-xl h-10"
           asChild
         >
           <Link href="/demo-report">View Sample Report</Link>
         </Button>
         <Button
-          className="rounded-xl h-10 px-4 font-semibold shadow-sm bg-[#5b2d82] hover:bg-[#4a2469] text-white"
+          className="rounded-xl h-10 px-4 font-semibold shadow-sm"
           asChild
         >
           <Link href="/dashboard/reports/new">

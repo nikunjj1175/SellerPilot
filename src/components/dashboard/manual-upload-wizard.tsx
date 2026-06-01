@@ -112,7 +112,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 bg-muted/30 px-5 py-4">
         <div>
-          <h2 className="font-display text-xl font-bold">Manual Upload</h2>
+          <h2 className="font-semibold text-xl font-bold">Manual Upload</h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             Use this when you have Meesho Orders CSV and GST sale files ready from supplier.meesho.com
           </p>
@@ -144,7 +144,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
           <div className="flex items-start gap-3">
             <StepBadge n={1} />
             <div className="flex-1 space-y-1">
-              <h3 className="font-display text-lg font-bold">Choose Report Month</h3>
+              <h3 className="font-semibold text-lg font-bold">Choose Report Month</h3>
               <p className="text-sm text-muted-foreground">
                 Select the month you want P&L for. File names should match this period.
               </p>
@@ -191,7 +191,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
             <div className="flex items-start gap-3">
               <StepBadge n={2} />
               <div>
-                <h3 className="font-display text-lg font-bold">Upload Orders CSV</h3>
+                <h3 className="font-semibold text-lg font-bold">Upload Orders CSV</h3>
                 <p className="text-sm text-muted-foreground">
                   Use the Orders export for the selected report month only.
                 </p>
@@ -223,7 +223,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
             <div className="flex items-start gap-3">
               <StepBadge n={3} />
               <div>
-                <h3 className="font-display text-lg font-bold">Upload GST / Payment Files</h3>
+                <h3 className="font-semibold text-lg font-bold">Upload GST / Payment Files</h3>
                 <p className="text-sm text-muted-foreground max-w-2xl">
                   Download <strong>tcs_sales.xlsx</strong> and optional{" "}
                   <strong>tcs_sales_return.xlsx</strong> from Meesho payments / GST section.
@@ -313,7 +313,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-xs text-amber-950 leading-relaxed">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground leading-relaxed">
             <strong>Where to export:</strong> supplier.meesho.com → Orders (CSV) + Payments / GST downloads
             → <strong>tcs_sales.xlsx</strong> and <strong>tcs_sales_return.xlsx</strong>.
           </div>

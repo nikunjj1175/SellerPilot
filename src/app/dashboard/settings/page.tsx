@@ -13,7 +13,7 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl md:text-3xl font-bold">Profile</h1>
+        <h1 className="font-semibold text-2xl md:text-3xl font-bold">Profile</h1>
         <p className="text-muted-foreground text-sm">Account settings and Meesho upload reminders</p>
       </div>
 

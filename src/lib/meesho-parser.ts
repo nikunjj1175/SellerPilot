@@ -15,6 +15,7 @@ export type ParsedOrderLine = {
   netProfit: number;
   isReturn: boolean;
   isRto: boolean;
+  isCancelled?: boolean;
   orderDate?: Date;
   state?: string;
   pincode?: string;
@@ -31,6 +32,7 @@ export type StateOrderStats = {
   revenue: number;
   returnCount: number;
   rtoCount: number;
+  cancelledCount?: number;
 };
 
 export type ReportSummary = {
@@ -42,6 +44,10 @@ export type ReportSummary = {
   gstImpact: number;
   netProfit: number;
   totalOrders: number;
+  /** All sub-orders from Orders CSV */
+  grossOrderCount?: number;
+  cancelledCount?: number;
+  netOrders?: number;
   returnCount: number;
   rtoCount: number;
   returnRate: number;
@@ -173,11 +179,16 @@ export function aggregateByState(lines: ParsedOrderLine[]): StateOrderStats[] {
       revenue: 0,
       returnCount: 0,
       rtoCount: 0,
+      cancelledCount: 0,
     };
     existing.orderCount += 1;
-    existing.revenue += line.saleAmount;
-    if (line.isReturn) existing.returnCount += 1;
-    if (line.isRto) existing.rtoCount += 1;
+    if (line.isCancelled || (line.orderStatus ?? "").toUpperCase().includes("CANCEL")) {
+      existing.cancelledCount = (existing.cancelledCount ?? 0) + 1;
+    } else {
+      existing.revenue += line.saleAmount;
+      if (line.isReturn) existing.returnCount += 1;
+      if (line.isRto) existing.rtoCount += 1;
+    }
     map.set(state, existing);
   }
 

@@ -10,7 +10,7 @@ export function DashboardHeader() {
   const firstName = session?.user?.name?.split(" ")[0] ?? "Seller";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-border bg-card/95 backdrop-blur px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-card/95 backdrop-blur px-4 md:px-6">
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
@@ -20,17 +20,14 @@ export function DashboardHeader() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground truncate">
-            Welcome back, <span className="font-semibold text-foreground">{firstName}</span>{" "}
-            <span aria-hidden>👋</span>
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground truncate">
+          Welcome, <span className="font-medium text-foreground">{firstName}</span>
+        </p>
       </div>
-      <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm shrink-0">
-        <Coins className="h-4 w-4 text-amber-600" />
-        <span className="font-medium text-amber-900">
-          Credits: <span className="font-bold">{session?.user?.credits ?? 0}</span>
+      <div className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm shrink-0">
+        <Coins className="h-4 w-4 text-primary" aria-hidden />
+        <span className="text-foreground">
+          Credits: <span className="font-semibold">{session?.user?.credits ?? 0}</span>
         </span>
       </div>
     </header>

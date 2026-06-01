@@ -97,7 +97,7 @@ function SkuSnapshotCards({ snap }: { snap: ReportDetailData["analytics"]["skuSn
         <Card key={c.label} className="rounded-2xl border-border/60 shadow-sm">
           <CardContent className="pt-5 pb-5">
             <p className="text-xs text-muted-foreground">{c.label}</p>
-            <p className={`font-display text-3xl font-bold mt-1 ${c.tone}`}>{c.value}</p>
+            <p className={`font-semibold text-3xl font-bold mt-1 ${c.tone}`}>{c.value}</p>
             <p className="text-xs text-muted-foreground mt-2">{c.sub}</p>
           </CardContent>
         </Card>
@@ -109,14 +109,14 @@ function SkuSnapshotCards({ snap }: { snap: ReportDetailData["analytics"]["skuSn
 function ReportHero({ data }: { data: ReportDetailData }) {
   const h = data.analytics.hero;
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-primary/80 p-6 md:p-8 text-white shadow-xl">
+    <div className="rounded-3xl bg-gradient-to-br from-violet-950 via-violet-900 to-primary p-6 md:p-8 text-white shadow-xl">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             NET PROFIT (ex-GST)
           </div>
-          <p className="font-display text-4xl md:text-5xl font-bold mt-2">{formatINR(h.netProfit)}</p>
+          <p className="font-semibold text-4xl md:text-5xl font-bold mt-2">{formatINR(h.netProfit)}</p>
           <div className="flex flex-wrap gap-2 mt-4">
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{h.marginPct.toFixed(2)}% margin</span>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{formatINR(h.avgPerOrder)} avg/order</span>
@@ -124,14 +124,22 @@ function ReportHero({ data }: { data: ReportDetailData }) {
           </div>
         </div>
         <div className="flex items-center gap-6">
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div className="rounded-xl bg-white/10 px-4 py-3">
               <p className="text-white/60 text-xs">Total payout</p>
               <p className="font-semibold">{formatINR(h.totalPayout)}</p>
             </div>
             <div className="rounded-xl bg-white/10 px-4 py-3">
+              <p className="text-white/60 text-xs">Gross orders</p>
+              <p className="font-semibold">{h.grossOrders}</p>
+            </div>
+            <div className="rounded-xl bg-white/10 px-4 py-3">
+              <p className="text-white/60 text-xs">Cancelled (−)</p>
+              <p className="font-semibold text-violet-200">{h.cancelled}</p>
+            </div>
+            <div className="rounded-xl bg-white/10 px-4 py-3">
               <p className="text-white/60 text-xs">Net orders</p>
-              <p className="font-semibold">{h.netOrders}</p>
+              <p className="font-semibold text-emerald-300">{h.netOrders}</p>
             </div>
             <div className="rounded-xl bg-white/10 px-4 py-3">
               <p className="text-white/60 text-xs">Loss SKUs</p>
@@ -145,7 +153,9 @@ function ReportHero({ data }: { data: ReportDetailData }) {
                 <p className="text-[10px] text-white/70 uppercase">Delivered</p>
               </div>
             </div>
-            <p className="text-xs text-white/60 mt-2">{h.grossOrders} order rows</p>
+            <p className="text-xs text-white/60 mt-2">
+              {h.netOrders} net · {h.cancelled} cancelled
+            </p>
           </div>
         </div>
       </div>
@@ -201,9 +211,9 @@ export function ReportHub({
   return (
     <div className="space-y-6">
       {data.isDemo && (
-        <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-primary/10 p-5 flex flex-wrap items-center justify-between gap-4">
+        <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-accent p-5 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="font-display font-bold text-lg">Demo Report — {MEESHO_LABEL}</p>
+            <p className="font-semibold font-bold text-lg">Demo Report — {MEESHO_LABEL}</p>
             <p className="text-sm text-muted-foreground mt-1">
               Upload your 3 Meesho files (Orders + tcs_sales + tcs_sales_return) for real P&L, state map,
               SKU actions & AI insights.
@@ -222,7 +232,7 @@ export function ReportHub({
           <p className="text-xs uppercase tracking-wider text-primary font-medium">
             {MEESHO_LABEL} P&L Report
           </p>
-          <h1 className="font-display text-2xl md:text-3xl font-bold mt-1">{data.name}</h1>
+          <h1 className="font-semibold text-2xl md:text-3xl font-bold mt-1">{data.name}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {new Date(data.createdAt).toLocaleDateString("en-IN", {
               day: "numeric",
@@ -265,19 +275,19 @@ export function ReportHub({
           <div className="space-y-6">
             <div>
               <p className="text-xs uppercase text-primary font-medium">SKU Snapshot</p>
-              <h2 className="font-display text-xl font-bold mt-1">SKU Count Summary</h2>
+              <h2 className="font-semibold text-xl font-bold mt-1">SKU Count Summary</h2>
             </div>
             <SkuSnapshotCards snap={data.analytics.skuSnapshot} />
             <div className="grid gap-6 lg:grid-cols-2">
               <Card className="rounded-2xl">
                 <CardHeader>
-                  <CardTitle className="font-display">Key Metrics</CardTitle>
+                  <CardTitle className="font-semibold">Key Metrics</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
                   {data.analytics.monthlyMetrics.slice(0, 8).map((m) => (
                     <div key={m.label} className="rounded-xl border border-border/60 p-3">
                       <p className="text-muted-foreground text-xs">{m.label}</p>
-                      <p className="font-display font-bold text-lg">{m.value}</p>
+                      <p className="font-semibold font-bold text-lg">{m.value}</p>
                       {m.sub && <p className="text-xs text-muted-foreground mt-1">{m.sub}</p>}
                     </div>
                   ))}
@@ -285,7 +295,7 @@ export function ReportHub({
               </Card>
               <Card className="rounded-2xl">
                 <CardHeader>
-                  <CardTitle className="font-display flex items-center gap-2">
+                  <CardTitle className="font-semibold flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
                     State preview
                   </CardTitle>
@@ -305,7 +315,7 @@ export function ReportHub({
         <TabsContent value="ask-ai">
           <Card className="rounded-2xl border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
             <CardHeader>
-              <CardTitle className="font-display flex items-center gap-2">
+              <CardTitle className="font-semibold flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
                 PNL SATHI AI — Ask what to fix
               </CardTitle>
@@ -350,7 +360,7 @@ export function ReportHub({
             <SkuSnapshotCards snap={data.analytics.skuSnapshot} />
             <Card className="rounded-2xl">
               <CardHeader>
-                <CardTitle className="font-display">Top SKUs by profit</CardTitle>
+                <CardTitle className="font-semibold">Top SKUs by profit</CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -381,7 +391,7 @@ export function ReportHub({
         <TabsContent value="state-spread">
           <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle className="font-display">State Map Filter</CardTitle>
+              <CardTitle className="font-semibold">State Map Filter</CardTitle>
               <CardDescription>
                 State-wise order spread. Filter by delivery status.
               </CardDescription>
@@ -427,7 +437,7 @@ export function ReportHub({
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="rounded-2xl">
               <CardHeader>
-                <CardTitle className="font-display">Revenue Split</CardTitle>
+                <CardTitle className="font-semibold">Revenue Split</CardTitle>
                 <CardDescription>Payout components from Meesho GST files</CardDescription>
               </CardHeader>
               <CardContent>
@@ -454,7 +464,7 @@ export function ReportHub({
             </Card>
             <Card className="rounded-2xl">
               <CardHeader>
-                <CardTitle className="font-display">Order Status</CardTitle>
+                <CardTitle className="font-semibold">Order Status</CardTitle>
                 <CardDescription>Delivered, RTO, return, cancelled mix</CardDescription>
               </CardHeader>
               <CardContent>
@@ -484,7 +494,7 @@ export function ReportHub({
           <Card className="rounded-2xl">
             <CardHeader>
               <p className="text-xs uppercase text-primary font-medium">Decision Support</p>
-              <CardTitle className="font-display">Action Plan</CardTitle>
+              <CardTitle className="font-semibold">Action Plan</CardTitle>
               <CardDescription>SKUs ranked by priority — fix losses first.</CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
@@ -511,7 +521,7 @@ export function ReportHub({
                             row.badge === "danger"
                               ? "bg-red-100 text-red-700"
                               : row.badge === "warning"
-                                ? "bg-amber-100 text-amber-800"
+                                ? "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200"
                                 : "bg-emerald-100 text-emerald-700"
                           }`}
                         >
@@ -535,13 +545,13 @@ export function ReportHub({
         <TabsContent value="metrics">
           <div>
             <p className="text-xs uppercase text-primary font-medium">Core Metrics</p>
-            <h2 className="font-display text-xl font-bold mt-1 mb-4">Monthly Summary</h2>
+            <h2 className="font-semibold text-xl font-bold mt-1 mb-4">Monthly Summary</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {data.analytics.monthlyMetrics.map((m) => (
                 <Card key={m.label} className="rounded-2xl">
                   <CardContent className="pt-5 pb-5">
                     <p className="text-xs text-muted-foreground">{m.label}</p>
-                    <p className="font-display text-2xl font-bold mt-1">{m.value}</p>
+                    <p className="font-semibold text-2xl font-bold mt-1">{m.value}</p>
                     {m.sub && <p className="text-xs text-muted-foreground mt-2">{m.sub}</p>}
                   </CardContent>
                 </Card>
@@ -553,7 +563,7 @@ export function ReportHub({
         <TabsContent value="gst-breakdown">
           <Card className="rounded-2xl max-w-lg">
             <CardHeader>
-              <CardTitle className="font-display">GST Breakdown</CardTitle>
+              <CardTitle className="font-semibold">GST Breakdown</CardTitle>
               <CardDescription>Output GST from Meesho tcs files (informational)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
@@ -577,7 +587,7 @@ export function ReportHub({
         <TabsContent value="trend">
           <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle className="font-display">Daily Trend</CardTitle>
+              <CardTitle className="font-semibold">Daily Trend</CardTitle>
               <CardDescription>Day-wise orders, sales & net profit</CardDescription>
             </CardHeader>
             <CardContent>
@@ -603,7 +613,7 @@ export function ReportHub({
             {(["topProfit", "topLoss"] as const).map((key) => (
               <Card key={key} className="rounded-2xl">
                 <CardHeader>
-                  <CardTitle className="font-display">
+                  <CardTitle className="font-semibold">
                     {key === "topProfit" ? "Top Profit SKUs" : "Top Loss SKUs"}
                   </CardTitle>
                 </CardHeader>
@@ -642,7 +652,7 @@ export function ReportHub({
           <Card className="rounded-2xl">
             <CardHeader>
               <p className="text-xs uppercase text-primary font-medium">Order Explorer</p>
-              <CardTitle className="font-display">Order-wise Preview</CardTitle>
+              <CardTitle className="font-semibold">Order-wise Preview</CardTitle>
               <CardDescription>
                 Showing {pageOrders.length} of {filteredOrders.length} rows · Page {orderPage} of {totalPages}
               </CardDescription>
@@ -677,7 +687,15 @@ export function ReportHub({
                         <td className="py-2 pr-3">{o.sku ?? "—"}</td>
                         <td className="py-2 pr-3 max-w-[140px] truncate">{o.productName}</td>
                         <td className="py-2 pr-3">
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{o.orderStatus ?? "—"}</span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              o.isCancelled || o.orderStatus?.toUpperCase().includes("CANCEL")
+                                ? "bg-violet-100 text-violet-800"
+                                : "bg-muted"
+                            }`}
+                          >
+                            {o.orderStatus ?? "—"}
+                          </span>
                         </td>
                         <td className="py-2 pr-3">{o.state ?? "—"}</td>
                         <td className="py-2 pr-3">{formatINR(o.saleAmount)}</td>
@@ -715,7 +733,7 @@ export function ReportHub({
         <TabsContent value="export">
           <Card className="rounded-2xl max-w-md">
             <CardHeader>
-              <CardTitle className="font-display">Export Report</CardTitle>
+              <CardTitle className="font-semibold">Export Report</CardTitle>
               <CardDescription>Download Excel with order-wise & SKU breakdown</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">

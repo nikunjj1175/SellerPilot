@@ -38,23 +38,23 @@ export function ReviewsSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="rounded-3xl border border-border bg-card shadow-lg overflow-hidden">
           <div className="grid lg:grid-cols-[minmax(280px,360px)_1fr]">
-            <div className="bg-brown-dark text-cream p-8 md:p-10 flex flex-col justify-between min-h-[320px]">
+            <div className="bg-surface-dark text-white p-8 md:p-10 flex flex-col justify-between min-h-[320px]">
               <div>
-                <p className="text-xs uppercase tracking-widest text-cream/60 font-semibold mb-3">
+                <p className="text-xs uppercase tracking-widest text-white/60 font-semibold mb-3">
                   Seller Reviews
                 </p>
-                <h2 className="font-display text-2xl md:text-3xl font-bold leading-tight">
+                <h2 className="text-2xl md:text-3xl font-semibold leading-tight">
                   Real sellers are finding real profit leaks
                 </h2>
-                <p className="mt-4 text-sm text-cream/75 leading-relaxed">
+                <p className="mt-4 text-sm text-white/75 leading-relaxed">
                   Reviews from Meesho sellers after checking SKU profit, payout matching, returns,
                   RTO and next-month actions inside SellerPilot.
                 </p>
               </div>
               <div className="mt-8 space-y-4">
-                <div className="inline-block rounded-xl bg-cream/10 px-4 py-3">
-                  <p className="font-display text-3xl font-bold">5.0</p>
-                  <p className="text-xs text-cream/60">Average rating from report users</p>
+                <div className="inline-block rounded-xl bg-white/10 px-4 py-3">
+                  <p className="text-3xl font-semibold">5.0</p>
+                  <p className="text-xs text-white/60">Average rating from report users</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-emerald-500/20 text-emerald-200 text-xs px-3 py-1">
@@ -75,7 +75,7 @@ export function ReviewsSection() {
                     className="rounded-2xl border border-border bg-card p-5 shadow-sm"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <div className="flex gap-0.5 text-amber-500 text-sm">★★★★★</div>
+                      <div className="flex gap-0.5 text-primary text-sm">★★★★★</div>
                       <Quote className="h-5 w-5 text-primary/40" />
                     </div>
                     <p className="font-semibold text-sm leading-snug">&ldquo;{r.quote}&rdquo;</p>
@@ -181,7 +181,7 @@ export function FaqSection() {
           <span className="inline-block rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold px-4 py-1.5 mb-4">
             FAQ
           </span>
-          <h2 className="font-display text-3xl md:text-4xl font-bold">
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
             Questions Meesho sellers ask before trusting their P&L
           </h2>
           <p className="mt-4 text-muted-foreground">

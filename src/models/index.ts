@@ -1,4 +1,5 @@
 export { User } from "./User";
+export { RefreshToken } from "./RefreshToken";
 export { UserSettings } from "./UserSettings";
 export { Report } from "./Report";
 export { OrderLine } from "./OrderLine";

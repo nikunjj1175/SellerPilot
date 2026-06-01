@@ -135,7 +135,8 @@ export function ProductCostsForm({
       a.download = res.fileName;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("CSV exported");
+      const n = "rowCount" in res ? res.rowCount : 0;
+      toast.success(`Exported ${n} SKU rows — edit costs and re-import`);
     });
   }
 
@@ -149,7 +150,12 @@ export function ProductCostsForm({
           return;
         }
         const count = "imported" in res ? res.imported : 0;
-        toast.success(`Imported ${count} SKU rows — profit recalculated`);
+        const dup = "duplicateRowsMerged" in res ? res.duplicateRowsMerged : 0;
+        const byId = "matchedById" in res ? res.matchedById : 0;
+        const unmatched = "unmatched" in res ? res.unmatched : 0;
+        toast.success(
+          `Updated ${count} rows (${byId} by ID)${dup ? ` · ${dup} duplicates merged` : ""}${unmatched ? ` · ${unmatched} unmatched` : ""}`
+        );
         router.refresh();
       });
     };
@@ -162,7 +168,7 @@ export function ProductCostsForm({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wider text-primary font-semibold">Operations</p>
-          <h1 className="font-display text-2xl md:text-3xl font-bold mt-1">
+          <h1 className="font-semibold text-2xl md:text-3xl font-bold mt-1">
             Product Cost / Purchase Price Including GST
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -215,6 +221,11 @@ export function ProductCostsForm({
 
       <Card className="rounded-2xl border-border/80 shadow-sm">
         <CardContent className="pt-6 space-y-4">
+          <p className="text-xs text-muted-foreground rounded-lg bg-muted/50 border border-border/60 px-3 py-2">
+            <strong>CSV tip:</strong> Export → edit → Import. Keep <strong>Cost Row ID</strong>. SKU
+            with <strong>&apos; . , ^</strong> is kept exactly — do not re-type SKU in Excel; only
+            edit cost columns.
+          </p>
           <form onSubmit={onSearch} className="flex gap-2">
             <Input
               name="q"

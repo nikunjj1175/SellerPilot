@@ -25,6 +25,7 @@ function toParsedLine(l: {
   netProfit: number;
   isReturn: boolean;
   isRto: boolean;
+  isCancelled?: boolean;
   orderDate?: Date;
   state?: string;
   pincode?: string;
@@ -80,6 +81,7 @@ export async function getReportDetail(
       netProfit: l.netProfit,
       isReturn: l.isReturn,
       isRto: l.isRto,
+      isCancelled: l.isCancelled,
       orderDate: l.orderDate,
       state: l.state,
       pincode: l.pincode,
@@ -95,7 +97,7 @@ export async function getReportDetail(
   const ordersByState =
     summary.ordersByState?.length ? summary.ordersByState : aggregateByState(parsed);
 
-  const orderRowCount = summary.totalOrders || parsed.length;
+  const orderRowCount = summary.grossOrderCount ?? parsed.length;
 
   return {
     id: report._id.toString(),
