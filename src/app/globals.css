@@ -150,3 +150,14 @@ body {
 .animate-pulse-glow {
   animation: pulse-glow 3s ease-in-out infinite;
 }
+
+/* PnL Sathi–style dashboard (purple accent on cream) */
+.pnl-dashboard {
+  --primary: #5b2d82;
+  --primary-foreground: #ffffff;
+  --background: #f8f7fb;
+  --card: #ffffff;
+  --muted: #f1f0f5;
+  --border: #e8e6ef;
+  --accent: #ede9f4;
+}

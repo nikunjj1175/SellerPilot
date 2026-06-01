@@ -21,7 +21,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <MobileNavContext.Provider value={{ open, setOpen }}>
-      <div className="relative flex min-h-screen bg-background">
+      <div className="pnl-dashboard relative flex min-h-screen bg-background">
         <div
           className={cn(
             "fixed inset-0 z-40 bg-black/40 md:hidden transition-opacity",

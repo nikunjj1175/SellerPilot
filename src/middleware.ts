@@ -18,7 +18,7 @@ const DASHBOARD_REDIRECTS: Record<string, string> = {
   "/dashboard/agency": "/dashboard/reports",
   "/dashboard/developer": "/dashboard/reports",
   "/dashboard/billing": "/dashboard/credits",
-  "/dashboard/integrations": "/dashboard/reports#upload",
+  "/dashboard/integrations": "/dashboard/reports/new",
   "/dashboard/analytics": "/dashboard/reports",
   "/dashboard/states": "/dashboard/reports",
   "/dashboard/sku": "/dashboard/reports",

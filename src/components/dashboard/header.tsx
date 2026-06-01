@@ -22,7 +22,8 @@ export function DashboardHeader() {
         </button>
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground truncate">
-            Welcome back, <span className="font-semibold text-foreground">{firstName}</span>
+            Welcome back, <span className="font-semibold text-foreground">{firstName}</span>{" "}
+            <span aria-hidden>👋</span>
           </p>
         </div>
       </div>
