@@ -1,6 +1,5 @@
 "use server";
 
-import { put } from "@vercel/blob";
 import { after } from "next/server";
 import mongoose from "mongoose";
 import { auth } from "@/auth";
@@ -8,15 +7,12 @@ import { connectDB } from "@/lib/mongodb";
 import { User, Report, OrderLine, CreditTransaction } from "@/models";
 import { CREDIT_COSTS } from "@/lib/credits";
 import { LARGE_CSV_BYTES, processReportJob } from "@/lib/report-processor";
-import { enqueueReportProcessing, isQueueConfigured } from "@/lib/queue";
-import type { Marketplace, ReportType } from "@/types/enums";
+import type { ReportType } from "@/types/enums";
 import type { ReportSummary } from "@/lib/meesho-parser";
 import { revalidatePath } from "next/cache";
 
 function getCreditCost(reportType: ReportType) {
   switch (reportType) {
-    case "MONTHLY":
-      return CREDIT_COSTS.MONTHLY_REPORT;
     case "QUARTERLY":
       return CREDIT_COSTS.QUARTERLY_REPORT;
     case "YEARLY":
@@ -28,29 +24,17 @@ function getCreditCost(reportType: ReportType) {
 
 export async function uploadAndProcessReport(formData: FormData) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return { error: "Please sign in first." };
-  }
+  if (!session?.user?.id) return { error: "Please sign in first." };
 
-  const marketplace = ((formData.get("marketplace") as string) || "MEESHO") as Marketplace;
-  const reportName = (formData.get("name") as string) || `${marketplace} Report`;
-  const reportType = ((formData.get("type") as string) || "CUSTOM") as ReportType;
+  const reportName = (formData.get("name") as string) || "";
+  const reportType = ((formData.get("type") as string) || "MONTHLY") as ReportType;
 
   const ordersFile = formData.get("ordersFile") as File | null;
   const gstSaleFile = formData.get("gstSaleFile") as File | null;
   const gstReturnFile = formData.get("gstReturnFile") as File | null;
-  const legacyFile = formData.get("file") as File | null;
 
-  const isMeeshoMulti =
-    marketplace === "MEESHO" && ordersFile && ordersFile.size > 0 && gstSaleFile && gstSaleFile.size > 0;
-
-  const file = legacyFile && legacyFile.size > 0 ? legacyFile : ordersFile;
-
-  if (!isMeeshoMulti && (!file || file.size === 0)) {
-    if (marketplace === "MEESHO") {
-      return { error: "Upload Meesho Orders Excel + GST Sale Excel (and optional GST Return)." };
-    }
-    return { error: "Please upload a CSV or Excel file." };
+  if (!ordersFile?.size || !gstSaleFile?.size) {
+    return { error: "Upload Meesho Orders CSV and tcs_sales.xlsx (GST Return optional)." };
   }
 
   const creditCost = getCreditCost(reportType);
@@ -61,115 +45,65 @@ export async function uploadAndProcessReport(formData: FormData) {
     return { error: `Not enough credits. This report needs ${creditCost} credits.` };
   }
 
-  const storeIdRaw = formData.get("storeId") as string | null;
-  const storeId = storeIdRaw ? new mongoose.Types.ObjectId(storeIdRaw) : undefined;
-
   const displayName =
-    reportName !== `${marketplace} Report`
-      ? reportName
-      : isMeeshoMulti
-        ? `Meesho P&L — ${ordersFile!.name.replace(/\.[^.]+$/, "")}`
-        : file!.name;
+    reportName.trim() || `Meesho P&L — ${ordersFile.name.replace(/\.[^.]+$/, "")}`;
 
   const report = await Report.create({
     userId: user._id,
     name: displayName,
-    marketplace,
+    marketplace: "MEESHO",
     type: reportType,
     status: "PROCESSING",
-    fileName: isMeeshoMulti
-      ? `${ordersFile!.name} + ${gstSaleFile!.name}`
-      : file!.name,
+    fileName: `${ordersFile.name} + ${gstSaleFile.name}`,
     creditsUsed: creditCost,
-    storeId,
-    uploadSource: storeId ? "AGENCY" : "WEB",
+    uploadSource: "WEB",
   });
 
   const reportId = report._id.toString();
 
-  let csvText = "";
-  let meeshoFiles: import("@/lib/report-processor").MeeshoFilePayload | undefined;
+  const meeshoFiles = {
+    ordersFileName: ordersFile.name,
+    gstSaleFileName: gstSaleFile.name,
+    gstReturnFileName: gstReturnFile?.size ? gstReturnFile.name : undefined,
+    ordersBuffer: await ordersFile.arrayBuffer(),
+    gstSaleBuffer: await gstSaleFile.arrayBuffer(),
+    gstReturnBuffer: gstReturnFile?.size ? await gstReturnFile.arrayBuffer() : undefined,
+  };
 
-  if (isMeeshoMulti) {
-    meeshoFiles = {
-      ordersFileName: ordersFile!.name,
-      gstSaleFileName: gstSaleFile!.name,
-      gstReturnFileName: gstReturnFile?.size ? gstReturnFile.name : undefined,
-      ordersBuffer: await ordersFile!.arrayBuffer(),
-      gstSaleBuffer: await gstSaleFile!.arrayBuffer(),
-      gstReturnBuffer: gstReturnFile?.size ? await gstReturnFile.arrayBuffer() : undefined,
-    };
-    csvText = `[meesho-multi:${ordersFile!.name}]`;
-  } else {
-    csvText = await file!.text();
-  }
-
-  const isLarge =
-    !isMeeshoMulti &&
-    (file!.size >= LARGE_CSV_BYTES || csvText.split("\n").length > 2000);
+  const totalBytes = ordersFile.size + gstSaleFile.size + (gstReturnFile?.size ?? 0);
+  const isLarge = totalBytes >= LARGE_CSV_BYTES;
 
   try {
-    if (isLarge && isQueueConfigured() && process.env.BLOB_READ_WRITE_TOKEN) {
-      const blob = await put(`reports/${session.user.id}/${reportId}-${file!.name}`, csvText, {
-        access: "public",
-        addRandomSuffix: false,
-      });
-
-      await enqueueReportProcessing({
-        reportId,
-        userId: session.user.id,
-        creditCost,
-        reportName: displayName,
-        blobUrl: blob.url,
-        fileName: file!.name,
-      });
-
-      revalidatePath("/dashboard/reports");
-      return {
-        success: true,
-        reportId,
-        queued: true,
-        message: "Large file queued for background processing.",
-      };
-    }
-
     if (isLarge) {
       after(async () => {
         await processReportJob({
           reportId,
           userId: session.user.id,
-          csvText,
-          fileName: file!.name,
+          fileName: ordersFile.name,
           creditCost,
-          marketplace,
+          meeshoFiles,
           storeBlob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
         });
       });
-
       revalidatePath("/dashboard/reports");
       return {
         success: true,
         reportId,
         queued: true,
-        message: "Processing in background. Refresh in a few seconds.",
+        message: "Processing in background. Refresh shortly.",
       };
     }
 
     await processReportJob({
       reportId,
       userId: session.user.id,
-      csvText,
-      fileName: isMeeshoMulti ? ordersFile!.name : file!.name,
+      fileName: ordersFile.name,
       creditCost,
-      marketplace,
-      storeBlob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
       meeshoFiles,
+      storeBlob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
     });
 
-    revalidatePath("/dashboard");
     revalidatePath("/dashboard/reports");
-    revalidatePath("/dashboard/states");
-    revalidatePath("/dashboard/analytics");
     return { success: true, reportId };
   } catch (err) {
     await Report.findByIdAndUpdate(reportId, {
@@ -185,10 +119,7 @@ export async function deleteReport(reportId: string) {
   if (!session?.user?.id) return { error: "Unauthorized" };
 
   await connectDB();
-  const report = await Report.findOne({
-    _id: reportId,
-    userId: session.user.id,
-  });
+  const report = await Report.findOne({ _id: reportId, userId: session.user.id });
   if (!report) return { error: "Report not found" };
 
   await OrderLine.deleteMany({ reportId: report._id });
@@ -202,8 +133,8 @@ export async function generateAiInsights(reportId: string) {
   if (!session?.user?.id) return { error: "Unauthorized" };
 
   const cost = CREDIT_COSTS.AI_INSIGHTS;
-
   await connectDB();
+
   const user = await User.findById(session.user.id);
   if (!user || user.credits < cost) {
     return { error: `Need ${cost} credits for AI insights.` };
@@ -234,12 +165,14 @@ export async function generateAiInsights(reportId: string) {
     isReturn: l.isReturn,
     isRto: l.isRto,
     orderDate: l.orderDate,
+    orderStatus: l.orderStatus,
+    state: l.state,
   }));
 
   const insights = await generateEnhancedInsights(
     lines,
     report.summary as ReportSummary,
-    report.marketplace ?? "MEESHO"
+    "MEESHO"
   );
 
   await User.findByIdAndUpdate(session.user.id, { $inc: { credits: -cost } });
@@ -252,7 +185,7 @@ export async function generateAiInsights(reportId: string) {
   });
   await Report.findByIdAndUpdate(reportId, { insights, insightsAt: new Date() });
 
-  revalidatePath("/dashboard/insights");
+  revalidatePath(`/dashboard/reports/${reportId}`);
   revalidatePath("/dashboard/reports");
   return { success: true, insights };
 }

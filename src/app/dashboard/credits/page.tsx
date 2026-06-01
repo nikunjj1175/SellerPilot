@@ -1,6 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { connectDB } from "@/lib/mongodb";
-import { User, CreditTransaction, CreditPackage } from "@/models";
+import { CreditTransaction, CreditPackage } from "@/models";
 import type { ICreditTransaction } from "@/models/CreditTransaction";
 import type { ICreditPackage } from "@/models/CreditPackage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,6 @@ export default async function CreditsPage() {
   const session = await requireSession();
   await connectDB();
 
-  const user = await User.findById(session.user.id);
   const transactions = await CreditTransaction.find({ userId: session.user.id })
     .sort({ createdAt: -1 })
     .limit(20)
@@ -22,8 +21,8 @@ export default async function CreditsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Credit Wallet</h1>
-        <p className="text-muted-foreground">Current balance: {user?.credits ?? 0} credits</p>
+        <h1 className="font-display text-2xl md:text-3xl font-bold">Payments</h1>
+        <p className="text-muted-foreground text-sm">Buy credits to generate Meesho P&L reports</p>
       </div>
 
       <Card>

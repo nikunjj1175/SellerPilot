@@ -30,7 +30,7 @@ export async function notifyReportReady(userId: string, reportId: string) {
         reportName: report.name,
         marketplace: report.marketplace ?? "MEESHO",
         summary,
-        dashboardUrl: `${APP_URL}/dashboard/analytics?report=${reportId}`,
+        dashboardUrl: `${APP_URL}/dashboard/reports/${reportId}`,
       }),
     });
   } catch (e) {

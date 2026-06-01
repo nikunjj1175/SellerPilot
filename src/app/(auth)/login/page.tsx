@@ -70,7 +70,7 @@ export default function LoginPage() {
         variant="outline"
         className="w-full rounded-xl h-11"
         type="button"
-        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+        onClick={() => signIn("google", { callbackUrl: "/dashboard/reports" })}
       >
         <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" aria-hidden>
           <path

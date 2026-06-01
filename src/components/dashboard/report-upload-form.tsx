@@ -9,18 +9,15 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { FileSpreadsheet, Info } from "lucide-react";
 
-type StoreOption = { id: string; name: string; marketplace: string };
-
 const EXCEL_ACCEPT = ".xlsx,.xls,.csv,.txt";
 
-export function ReportUploadForm({ stores = [] }: { stores?: StoreOption[] }) {
+export function ReportUploadForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function onSubmit(formData: FormData) {
     startTransition(async () => {
-      formData.set("marketplace", "MEESHO");
       const result = await uploadAndProcessReport(formData);
       if (result.error) {
         toast.error(result.error);
@@ -38,27 +35,6 @@ export function ReportUploadForm({ stores = [] }: { stores?: StoreOption[] }) {
 
   return (
     <form ref={formRef} action={onSubmit} className="space-y-4 max-w-xl">
-      <input type="hidden" name="marketplace" value="MEESHO" />
-      <input type="hidden" name="meeshoMode" value="multi" />
-
-      {stores.length > 0 && (
-        <div className="space-y-2">
-          <Label htmlFor="storeId">Client store (agency)</Label>
-          <select
-            id="storeId"
-            name="storeId"
-            className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
-          >
-            <option value="">— My account (no store) —</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       <div className="space-y-2">
         <Label htmlFor="name">Report name</Label>
         <Input id="name" name="name" placeholder="April 2026 Meesho P&L" />

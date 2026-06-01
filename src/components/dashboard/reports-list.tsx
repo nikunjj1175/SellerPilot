@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { formatINR, formatPct } from "@/lib/utils";
 import type { ClientReport } from "@/types/report";
 import type { ReportStatus } from "@/types/enums";
-import { Trash2, FileSpreadsheet, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useTransition } from "react";
 import Link from "next/link";
@@ -65,7 +65,9 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     Monthly P&L Report
                   </p>
-                  <h3 className="font-display text-xl font-bold">{report.name || monthLabel}</h3>
+                  <h3 className="font-display text-2xl md:text-3xl font-bold text-primary">
+                    {report.name || monthLabel}
+                  </h3>
                   <p className="text-xs text-muted-foreground">
                     Generated{" "}
                     {new Date(report.createdAt).toLocaleString("en-IN", {
@@ -87,8 +89,8 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                         <span className="rounded-full border border-primary/40 text-primary px-2.5 py-0.5 text-xs font-medium">
                           Full Report
                         </span>
-                        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
-                          Meesho · {report.creditsUsed} credits
+                        <span className="rounded-full border border-primary/30 bg-primary/5 text-primary px-2.5 py-0.5 text-xs font-medium">
+                          1 month analysis
                         </span>
                       </>
                     )}
@@ -140,49 +142,38 @@ export function ReportsList({ reports }: { reports: ClientReport[] }) {
                       <Button className="rounded-xl shadow-md w-full sm:w-auto" asChild>
                         <Link href={`/dashboard/reports/${report.id}`}>Open P&L Report</Link>
                       </Button>
-                      <div className="flex flex-wrap gap-3 text-xs justify-end">
-                        <Link
-                          href={`/dashboard/product-costs?report=${report.id}`}
-                          className="text-primary hover:underline"
-                        >
-                          Edit SKU Costs
-                        </Link>
+                      <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:min-w-[200px]">
                         <a
                           href={`/api/reports/${report.id}/export?format=pdf`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-muted-foreground hover:text-foreground"
+                          className="rounded-xl border border-border bg-card px-4 py-3 text-center text-sm font-medium hover:bg-muted/50 transition"
                         >
                           Download PDF
                         </a>
-                        <a
-                          href={`/api/reports/${report.id}/export?format=excel`}
-                          className="text-muted-foreground hover:text-foreground"
+                        <Link
+                          href={`/dashboard/product-costs?report=${report.id}`}
+                          className="rounded-xl border border-border bg-card px-4 py-3 text-center text-sm font-medium hover:bg-muted/50 transition"
                         >
-                          <FileSpreadsheet className="h-3 w-3 inline mr-0.5" />
-                          Excel
-                        </a>
+                          Edit SKU Costs
+                        </Link>
                       </div>
-                      <p className="text-[10px] text-muted-foreground text-right">
-                        Add product costs for true net profit
-                      </p>
+                      <button
+                        type="button"
+                        className="text-[10px] text-muted-foreground hover:text-red-500 self-end"
+                        disabled={pending}
+                        onClick={() =>
+                          startTransition(async () => {
+                            const res = await deleteReport(report.id);
+                            if (res.error) toast.error(res.error);
+                            else toast.success("Report deleted");
+                          })
+                        }
+                      >
+                        Delete report
+                      </button>
                     </>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 self-end"
-                    disabled={pending}
-                    onClick={() =>
-                      startTransition(async () => {
-                        const res = await deleteReport(report.id);
-                        if (res.error) toast.error(res.error);
-                        else toast.success("Report deleted");
-                      })
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             </div>
@@ -198,8 +189,8 @@ export function ReportsPageHeader() {
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-bold">Your Reports</h1>
-        <p className="text-muted-foreground mt-1">
-          Access your monthly P&L statements and manage product costs.
+        <p className="text-muted-foreground mt-1 text-sm md:text-base">
+          Access your monthly P&L statements and request past data.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

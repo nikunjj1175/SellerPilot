@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
-import { connectDB } from "@/lib/mongodb";
-import { Report, type IReport } from "@/models/Report";
 import { processReportJob } from "@/lib/report-processor";
-import type { Marketplace } from "@/types/enums";
 
 async function verifyQStash(req: Request, body: string) {
   const current = process.env.QSTASH_CURRENT_SIGNING_KEY;
@@ -46,15 +43,9 @@ export async function POST(req: Request) {
 
   const fileRes = await fetch(payload.blobUrl);
   if (!fileRes.ok) {
-    return NextResponse.json({ error: "Failed to fetch CSV from storage" }, { status: 404 });
+    return NextResponse.json({ error: "Failed to fetch file from storage" }, { status: 404 });
   }
   const csvText = await fileRes.text();
-
-  await connectDB();
-  const reportDoc = await Report.findById(payload.reportId)
-    .select("marketplace")
-    .lean<Pick<IReport, "marketplace"> | null>();
-  const marketplace = (reportDoc?.marketplace ?? "MEESHO") as Marketplace;
 
   await processReportJob({
     reportId: payload.reportId,
@@ -62,7 +53,6 @@ export async function POST(req: Request) {
     csvText,
     fileName: payload.fileName,
     creditCost: payload.creditCost,
-    marketplace,
     storeBlob: false,
   });
 
