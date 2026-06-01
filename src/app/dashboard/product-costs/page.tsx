@@ -23,6 +23,7 @@ async function ProductCostsContent({
 
   return (
     <ProductCostsForm
+      key={`${reportId}-${page}-${search ?? ""}`}
       reportId={reportId}
       reportName={data.report.name}
       reportPeriod={data.report.createdAt}

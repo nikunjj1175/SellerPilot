@@ -29,7 +29,7 @@ export async function registerUser(formData: FormData) {
   await User.create({ name, email, passwordHash, credits: 10 });
 
   try {
-    await signIn("credentials", { email, password, redirectTo: "/dashboard" });
+    await signIn("credentials", { email, password, redirectTo: "/dashboard/reports" });
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "Registration done. Please sign in." };
@@ -43,7 +43,7 @@ export async function loginUser(formData: FormData) {
   const password = formData.get("password") as string;
 
   try {
-    await signIn("credentials", { email, password, redirectTo: "/dashboard" });
+    await signIn("credentials", { email, password, redirectTo: "/dashboard/reports" });
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "Invalid email or password." };

@@ -11,7 +11,6 @@ export function serializeReport(doc: IReport): ClientReport {
     userId: doc.userId.toString(),
     name: doc.name,
     marketplace: doc.marketplace ?? "MEESHO",
-    storeId: doc.storeId?.toString(),
     uploadSource: doc.uploadSource ?? "WEB",
     type: doc.type,
     status: doc.status,

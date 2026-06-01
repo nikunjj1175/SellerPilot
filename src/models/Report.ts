@@ -8,7 +8,6 @@ export interface IReport {
   userId: mongoose.Types.ObjectId;
   name: string;
   marketplace: Marketplace;
-  storeId?: mongoose.Types.ObjectId;
   uploadSource: UploadSource;
   type: ReportType;
   status: ReportStatus;
@@ -33,10 +32,9 @@ const ReportSchema = new Schema<IReport>(
       default: "MEESHO",
       index: true,
     },
-    storeId: { type: Schema.Types.ObjectId, ref: "SellerStore", index: true },
     uploadSource: {
       type: String,
-      enum: ["WEB", "API", "AGENCY"],
+      enum: ["WEB"],
       default: "WEB",
     },
     type: {

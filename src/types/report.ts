@@ -7,7 +7,6 @@ export type ClientReport = {
   userId: string;
   name: string;
   marketplace: Marketplace;
-  storeId?: string;
   uploadSource?: UploadSource;
   type: ReportType;
   status: ReportStatus;

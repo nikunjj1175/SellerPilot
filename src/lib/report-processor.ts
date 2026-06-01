@@ -3,9 +3,8 @@ import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { User, Report, OrderLine, CreditTransaction } from "@/models";
 import { seedSkuCostsFromOrderLines } from "@/lib/product-costs";
-import { parseMarketplaceCsv } from "@/lib/marketplace-parser";
 import { parseMeeshoFromFiles } from "@/lib/meesho-merge-parser";
-import type { Marketplace } from "@/types/enums";
+import { parseMeeshoCsv } from "@/lib/meesho-parser";
 import type { ParsedOrderLine, ReportSummary } from "@/lib/meesho-parser";
 import { notifyReportReady } from "@/lib/report-notify";
 
@@ -24,26 +23,35 @@ async function bufferToFile(buffer: ArrayBuffer, name: string): Promise<File> {
   return new File([buffer], name);
 }
 
+async function parseMeeshoReport(
+  meeshoFiles?: MeeshoFilePayload,
+  csvText?: string
+): Promise<{ lines: ParsedOrderLine[]; summary: ReportSummary }> {
+  if (meeshoFiles?.ordersBuffer && meeshoFiles?.gstSaleBuffer) {
+    return parseMeeshoFromFiles({
+      orders: await bufferToFile(meeshoFiles.ordersBuffer, meeshoFiles.ordersFileName ?? "orders.csv"),
+      gstSale: await bufferToFile(meeshoFiles.gstSaleBuffer, meeshoFiles.gstSaleFileName ?? "tcs_sales.xlsx"),
+      gstReturn: meeshoFiles.gstReturnBuffer
+        ? await bufferToFile(meeshoFiles.gstReturnBuffer, meeshoFiles.gstReturnFileName ?? "tcs_return.xlsx")
+        : undefined,
+    });
+  }
+  if (csvText?.trim()) {
+    return parseMeeshoCsv(csvText);
+  }
+  throw new Error("Upload Orders CSV + tcs_sales.xlsx (and optional tcs_sales_return.xlsx).");
+}
+
 export async function processReportJob(payload: {
   reportId: string;
   userId: string;
-  csvText: string;
+  csvText?: string;
   fileName: string;
   creditCost: number;
-  marketplace?: Marketplace;
   storeBlob?: boolean;
   meeshoFiles?: MeeshoFilePayload;
 }) {
-  const {
-    reportId,
-    userId,
-    csvText,
-    fileName,
-    creditCost,
-    marketplace = "MEESHO",
-    storeBlob,
-    meeshoFiles,
-  } = payload;
+  const { reportId, userId, fileName, creditCost, storeBlob, meeshoFiles, csvText = "" } = payload;
 
   await connectDB();
   const reportObjectId = new mongoose.Types.ObjectId(reportId);
@@ -51,7 +59,7 @@ export async function processReportJob(payload: {
 
   try {
     let blobUrl: string | undefined;
-    if (storeBlob && process.env.BLOB_READ_WRITE_TOKEN) {
+    if (storeBlob && process.env.BLOB_READ_WRITE_TOKEN && csvText) {
       const blob = await put(`reports/${userId}/${reportId}-${fileName}`, csvText, {
         access: "public",
         addRandomSuffix: false,
@@ -59,41 +67,10 @@ export async function processReportJob(payload: {
       blobUrl = blob.url;
     }
 
-    let lines: ParsedOrderLine[];
-    let summary: ReportSummary;
-
-    if (
-      marketplace === "MEESHO" &&
-      meeshoFiles &&
-      (meeshoFiles.ordersBuffer || meeshoFiles.gstSaleBuffer)
-    ) {
-      const result = await parseMeeshoFromFiles({
-        orders: meeshoFiles.ordersBuffer
-          ? await bufferToFile(meeshoFiles.ordersBuffer, meeshoFiles.ordersFileName ?? "orders.xlsx")
-          : undefined,
-        gstSale: meeshoFiles.gstSaleBuffer
-          ? await bufferToFile(
-              meeshoFiles.gstSaleBuffer,
-              meeshoFiles.gstSaleFileName ?? "gst_sale.xlsx"
-            )
-          : undefined,
-        gstReturn: meeshoFiles.gstReturnBuffer
-          ? await bufferToFile(
-              meeshoFiles.gstReturnBuffer,
-              meeshoFiles.gstReturnFileName ?? "gst_return.xlsx"
-            )
-          : undefined,
-      });
-      lines = result.lines;
-      summary = result.summary;
-    } else {
-      const parsed = parseMarketplaceCsv(marketplace, csvText);
-      lines = parsed.lines;
-      summary = parsed.summary;
-    }
+    const { lines, summary } = await parseMeeshoReport(meeshoFiles, csvText);
 
     if (lines.length === 0) {
-      throw new Error("No rows found. Check Meesho export format.");
+      throw new Error("No rows found. Check Meesho file format.");
     }
 
     await User.findByIdAndUpdate(userObjectId, { $inc: { credits: -creditCost } });
@@ -144,7 +121,6 @@ export async function processReportJob(payload: {
     }
 
     await seedSkuCostsFromOrderLines(userObjectId, reportObjectId);
-
     await notifyReportReady(userId, reportId);
 
     return { success: true, rowCount: lines.length };
@@ -157,4 +133,4 @@ export async function processReportJob(payload: {
   }
 }
 
-export const LARGE_CSV_BYTES = 200 * 1024;
+export const LARGE_CSV_BYTES = 2_000_000;

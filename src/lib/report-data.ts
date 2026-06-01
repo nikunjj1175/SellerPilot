@@ -118,9 +118,3 @@ export async function getUserCompletedReports(userId: string) {
     .select("name createdAt")
     .lean<Pick<IReport, "name" | "createdAt" | "_id">[]>();
 }
-
-/** @deprecated Old analytics routes redirect to tabbed report hub */
-export async function getReportAnalytics(userId: string, reportId?: string) {
-  if (!reportId) return null;
-  return getReportDetail(userId, reportId);
-}

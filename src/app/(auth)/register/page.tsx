@@ -70,7 +70,7 @@ export default function RegisterPage() {
         variant="outline"
         className="w-full rounded-xl h-11"
         type="button"
-        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+        onClick={() => signIn("google", { callbackUrl: "/dashboard/reports" })}
       >
         Continue with Google
       </Button>

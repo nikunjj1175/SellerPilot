@@ -18,8 +18,16 @@ export type SkuCostRow = {
   packCost: number;
 };
 
+export function normalizeSkuSize(sku: string, size = "") {
+  return {
+    sku: sku.trim(),
+    size: size.trim(),
+  };
+}
+
 export function costKey(sku: string, size = "") {
-  return `${sku}::${size || ""}`;
+  const { sku: s, size: z } = normalizeSkuSize(sku, size);
+  return `${s}::${z}`;
 }
 
 export function lineBaseProfit(line: {
@@ -68,14 +76,13 @@ export async function seedSkuCostsFromOrderLines(
   const seen = new Map<string, SkuCostRow>();
 
   for (const l of lines) {
-    const sku = (l.sku ?? "unknown").trim();
-    const size = (l.size ?? "").trim();
+    const { sku, size } = normalizeSkuSize(l.sku ?? "unknown", l.size ?? "");
     const key = costKey(sku, size);
     if (seen.has(key)) continue;
     seen.set(key, {
       sku,
       size,
-      productName: l.productName ?? sku,
+      productName: (l.productName ?? sku).trim(),
       productCost: 0,
       packCost: 0,
     });
@@ -85,12 +92,12 @@ export async function seedSkuCostsFromOrderLines(
     updateOne: {
       filter: { reportId, sku: row.sku, size: row.size },
       update: {
+        $set: { productName: row.productName },
         $setOnInsert: {
           userId,
           reportId,
           sku: row.sku,
           size: row.size,
-          productName: row.productName,
           productCost: 0,
           packCost: 0,
         },
@@ -130,8 +137,8 @@ export async function getSkuCostRows(
     sku: r.sku,
     size: r.size ?? "",
     productName: r.productName,
-    productCost: r.productCost,
-    packCost: r.packCost,
+    productCost: r.productCost ?? 0,
+    packCost: r.packCost ?? 0,
   }));
 
   if (search) {
@@ -170,8 +177,8 @@ export async function recalculateReportWithProductCosts(
   const costMap = new Map<string, { productCost: number; packCost: number }>();
   for (const c of costs) {
     costMap.set(costKey(c.sku, c.size ?? ""), {
-      productCost: c.productCost,
-      packCost: c.packCost,
+      productCost: c.productCost ?? 0,
+      packCost: c.packCost ?? 0,
     });
   }
 
@@ -285,15 +292,29 @@ export function skuRowsToCsv(rows: SkuCostRow[]) {
   const body = rows
     .map((r) =>
       [
-        `"${r.sku.replace(/"/g, '""')}"`,
-        `"${(r.size || "").replace(/"/g, '""')}"`,
-        `"${r.productName.replace(/"/g, '""')}"`,
-        r.productCost.toFixed(2),
-        r.packCost.toFixed(2),
+        csvCell(r.sku),
+        csvCell(r.size),
+        csvCell(r.productName),
+        (r.productCost ?? 0).toFixed(2),
+        (r.packCost ?? 0).toFixed(2),
       ].join(",")
     )
     .join("\n");
-  return `${header}\n${body}`;
+  return `\uFEFF${header}\n${body}`;
+}
+
+function csvCell(value: string) {
+  const v = value ?? "";
+  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
+}
+
+function unquoteCell(value: string) {
+  const t = value.trim();
+  if (t.startsWith('"') && t.endsWith('"')) {
+    return t.slice(1, -1).replace(/""/g, '"').trim();
+  }
+  return t;
 }
 
 function splitCsvLine(line: string): string[] {
@@ -303,36 +324,98 @@ function splitCsvLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+        continue;
+      }
       inQuotes = !inQuotes;
       continue;
     }
     if (ch === "," && !inQuotes) {
-      out.push(cur.trim());
+      out.push(cur);
       cur = "";
       continue;
     }
     cur += ch;
   }
-  out.push(cur.trim());
-  return out;
+  out.push(cur);
+  return out.map((c) => unquoteCell(c));
+}
+
+type ColumnMap = {
+  sku: number;
+  size: number;
+  name: number;
+  productCost: number;
+  packCost: number;
+};
+
+function detectColumns(headerParts: string[]): ColumnMap | null {
+  const h = headerParts.map((p) => p.toLowerCase());
+  const idx = (...needles: string[]) =>
+    h.findIndex((col) => needles.some((n) => col.includes(n)));
+
+  const sku = idx("sku");
+  if (sku < 0) return null;
+
+  const size = idx("size");
+  const name = idx("product name", "productname", "product");
+  const productCost = idx("product cost", "purchase price", "purchase");
+  const packCost = idx("packaging", "packing", "pack cost", "pack cost");
+
+  return {
+    sku,
+    size: size >= 0 ? size : 1,
+    name: name >= 0 ? name : 2,
+    productCost: productCost >= 0 ? productCost : 3,
+    packCost: packCost >= 0 ? packCost : 4,
+  };
+}
+
+function parseMoney(raw: string) {
+  const cleaned = raw.replace(/[₹,\s]/g, "");
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
 export function parseSkuCostCsv(text: string): SkuCostRow[] {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return [];
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .split(/\r?\n/)
+    .filter((l) => l.trim().length > 0);
+  if (!lines.length) return [];
+
+  const firstParts = splitCsvLine(lines[0]);
+  const hasHeader = firstParts.some((p) => p.toLowerCase().includes("sku"));
+  const cols = hasHeader ? detectColumns(firstParts) : null;
+  const startIdx = hasHeader ? 1 : 0;
+
+  const map: ColumnMap = cols ?? {
+    sku: 0,
+    size: 1,
+    name: 2,
+    productCost: 3,
+    packCost: 4,
+  };
+
   const rows: SkuCostRow[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = startIdx; i < lines.length; i++) {
     const parts = splitCsvLine(lines[i]);
-    if (!parts[0]) continue;
+    const { sku, size } = normalizeSkuSize(parts[map.sku] ?? "", parts[map.size] ?? "");
+    if (!sku) continue;
+
     rows.push({
-      sku: parts[0],
-      size: parts[1] ?? "",
-      productName: parts[2] || parts[0],
-      productCost: parseFloat(parts[3]) || 0,
-      packCost: parseFloat(parts[4]) || 0,
+      sku,
+      size,
+      productName: (parts[map.name] ?? sku).trim() || sku,
+      productCost: parseMoney(parts[map.productCost] ?? "0"),
+      packCost: parseMoney(parts[map.packCost] ?? "0"),
     });
   }
+
   return rows;
 }
 

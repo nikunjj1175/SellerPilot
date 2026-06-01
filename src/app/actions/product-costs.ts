@@ -7,6 +7,7 @@ import { connectDB } from "@/lib/mongodb";
 import { ProductSkuCost, Report } from "@/models";
 import {
   getSkuCostRows,
+  normalizeSkuSize,
   parseSkuCostCsv,
   recalculateReportWithProductCosts,
   seedSkuCostsFromOrderLines,
@@ -35,32 +36,43 @@ export async function saveProductCosts(
 
   const reportObjectId = new mongoose.Types.ObjectId(reportId);
   const userObjectId = new mongoose.Types.ObjectId(session.user.id);
+  const packDefault = Math.max(0, opts?.commonPackCost ?? 0);
 
-  if (opts?.applyPackToAll && opts.commonPackCost != null) {
+  if (opts?.applyPackToAll && packDefault > 0) {
     await ProductSkuCost.updateMany(
       { reportId: reportObjectId, userId: userObjectId },
-      { $set: { packCost: opts.commonPackCost } }
+      { $set: { packCost: packDefault } }
+    );
+  } else if (opts?.fillMissingPack && packDefault > 0) {
+    await ProductSkuCost.updateMany(
+      {
+        reportId: reportObjectId,
+        userId: userObjectId,
+        packCost: { $lte: 0 },
+      },
+      { $set: { packCost: packDefault } }
     );
   }
 
   for (const row of rows) {
-    const packCost =
-      row.packCost > 0
-        ? row.packCost
-        : opts?.fillMissingPack && opts.commonPackCost != null
-          ? opts.commonPackCost
-          : row.packCost;
+    const { sku, size } = normalizeSkuSize(row.sku, row.size);
+    let packCost = Math.max(0, row.packCost ?? 0);
+    const productCost = Math.max(0, row.productCost ?? 0);
+
+    if (!opts?.applyPackToAll && opts?.fillMissingPack && packCost <= 0 && packDefault > 0) {
+      packCost = packDefault;
+    }
 
     await ProductSkuCost.findOneAndUpdate(
-      { reportId: reportObjectId, sku: row.sku, size: row.size ?? "" },
+      { reportId: reportObjectId, sku, size },
       {
         $set: {
           userId: userObjectId,
-          productName: row.productName,
-          productCost: Math.max(0, row.productCost),
-          packCost: Math.max(0, packCost),
+          productName: row.productName?.trim() || sku,
+          productCost,
+          packCost,
         },
-        $setOnInsert: { sku: row.sku, size: row.size ?? "" },
+        $setOnInsert: { sku, size },
       },
       { upsert: true }
     );
@@ -107,13 +119,22 @@ export async function loadProductCostPage(
 
 export async function exportProductCostsCsv(reportId: string) {
   const session = await requireSession();
-  await assertReportOwner(session.user.id, reportId);
-  const { rows } = await getSkuCostRows(session.user.id, reportId, { pageSize: 10000 });
-  return skuRowsToCsv(rows);
+  const report = await assertReportOwner(session.user.id, reportId);
+  await seedSkuCostsFromOrderLines(
+    session.user.id,
+    new mongoose.Types.ObjectId(reportId)
+  );
+  const { rows } = await getSkuCostRows(session.user.id, reportId, { pageSize: 50_000 });
+  const safeName = report.name.replace(/[^\w\-]+/g, "_").slice(0, 40);
+  return { csv: skuRowsToCsv(rows), fileName: `product-costs-${safeName}.csv` };
 }
 
 export async function importProductCostsCsv(reportId: string, csvText: string) {
   const rows = parseSkuCostCsv(csvText);
-  if (!rows.length) return { error: "No rows found in CSV" };
-  return saveProductCosts(reportId, rows);
+  if (!rows.length) {
+    return { error: "No valid rows in CSV. Use columns: SKU, Size, Product Name, Product Cost, Packaging Cost." };
+  }
+  const res = await saveProductCosts(reportId, rows);
+  if ("error" in res && res.error) return res;
+  return { success: true, imported: rows.length };
 }
