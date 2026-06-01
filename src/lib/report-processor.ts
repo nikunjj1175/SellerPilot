@@ -108,6 +108,7 @@ export async function processReportJob(payload: {
         netProfit: line.netProfit,
         isReturn: line.isReturn,
         isRto: line.isRto,
+        isCancelled: line.isCancelled ?? false,
         orderDate: line.orderDate,
         state: line.state,
         pincode: line.pincode,

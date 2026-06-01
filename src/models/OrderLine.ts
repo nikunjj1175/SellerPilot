@@ -16,6 +16,7 @@ export interface IOrderLine {
   netProfit: number;
   isReturn: boolean;
   isRto: boolean;
+  isCancelled?: boolean;
   orderDate?: Date;
   state?: string;
   pincode?: string;
@@ -41,6 +42,7 @@ const OrderLineSchema = new Schema<IOrderLine>({
   netProfit: { type: Number, default: 0 },
   isReturn: { type: Boolean, default: false },
   isRto: { type: Boolean, default: false },
+  isCancelled: { type: Boolean, default: false },
   orderDate: Date,
   state: { type: String, index: true },
   pincode: String,

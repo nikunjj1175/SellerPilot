@@ -86,7 +86,7 @@ export function filterLinesByStatus(lines: ParsedOrderLine[], filter: StatusFilt
     if (filter === "RTO") return s === "RTO" || l.isRto;
     if (filter === "RETURN") return s === "RETURN" || l.isReturn;
     if (filter === "DELIVERED") return s === "DELIVERED";
-    if (filter === "CANCELLED") return s === "CANCELLED";
+    if (filter === "CANCELLED") return s === "CANCELLED" || l.isCancelled === true;
     if (filter === "EXCHANGE") return s === "EXCHANGE";
     if (filter === "LOST") return s === "LOST";
     return true;
@@ -102,15 +102,19 @@ export function buildMeeshoAnalytics(
   summary: ReportSummary,
   orderRowCount?: number
 ): MeeshoReportAnalytics {
-  const grossOrders = orderRowCount ?? lines.length;
+  const grossOrders =
+    summary.grossOrderCount ?? orderRowCount ?? lines.length;
   const statusCounts = new Map<string, number>();
 
   for (const line of lines) {
-    const s = normalizeStatus(line.orderStatus);
+    const s = line.isCancelled ? "CANCELLED" : normalizeStatus(line.orderStatus);
     statusCounts.set(s, (statusCounts.get(s) ?? 0) + 1);
   }
 
-  const cancelled = statusCounts.get("CANCELLED") ?? 0;
+  const cancelled =
+    summary.cancelledCount ??
+    statusCounts.get("CANCELLED") ??
+    lines.filter((l) => l.isCancelled).length;
   const deliveredRows = statusCounts.get("DELIVERED") ?? 0;
   const rtoRows = statusCounts.get("RTO") ?? lines.filter((l) => l.isRto).length;
   const returnRows = statusCounts.get("RETURN") ?? lines.filter((l) => l.isReturn).length;
@@ -121,7 +125,7 @@ export function buildMeeshoAnalytics(
   const netProfit = summary.netProfit;
   const netTaxable = summary.netTaxableSales ?? summary.grossRevenue - summary.returnCharges;
   const marginPct = netTaxable > 0 ? (netProfit / netTaxable) * 100 : 0;
-  const netOrders = grossOrders - cancelled;
+  const netOrders = summary.netOrders ?? Math.max(0, grossOrders - cancelled);
   const avgPerOrder = netOrders > 0 ? netProfit / netOrders : 0;
 
   const statusMix = [

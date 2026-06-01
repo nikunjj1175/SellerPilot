@@ -5,6 +5,16 @@ import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import {
+  ACCESS_TTL_SEC,
+  clearRefreshCookie,
+  issueRefreshToken,
+  isRefreshTokenActive,
+  readRefreshCookie,
+  revokeAllUserRefreshTokens,
+  setRefreshCookie,
+  verifyRefreshJwt,
+} from "@/lib/jwt-refresh";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -43,6 +53,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      if (!user?.id) return;
+      const { token } = await issueRefreshToken(user.id);
+      await setRefreshCookie(token);
+    },
+    async signOut(message) {
+      const userId =
+        "token" in message && message.token?.id
+          ? (message.token.id as string)
+          : undefined;
+      if (userId) await revokeAllUserRefreshTokens(userId);
+      await clearRefreshCookie();
+    },
+  },
   callbacks: {
     ...authConfig.callbacks,
     async signIn({ user, account }) {
@@ -66,10 +91,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
     async jwt({ token, user, trigger }) {
+      const now = Math.floor(Date.now() / 1000);
+
       if (user?.id) {
         token.id = user.id;
         if ("role" in user) token.role = (user as { role?: string }).role;
         if ("credits" in user) token.credits = (user as { credits?: number }).credits;
+        token.accessExp = now + ACCESS_TTL_SEC;
       } else if (!token.id && token.sub) {
         token.id = token.sub;
       }
@@ -77,11 +105,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.id && (user || trigger === "update")) {
         await connectDB();
         const dbUser = await User.findById(token.id as string).select("role credits suspended");
+        if (dbUser?.suspended) return null;
         if (dbUser) {
           token.role = dbUser.role;
           token.credits = dbUser.credits;
         }
+        token.accessExp = now + ACCESS_TTL_SEC;
+        return token;
       }
+
+      const accessExp = typeof token.accessExp === "number" ? token.accessExp : 0;
+      if (now < accessExp) return token;
+
+      const refreshRaw = await readRefreshCookie();
+      const payload = refreshRaw ? await verifyRefreshJwt(refreshRaw) : null;
+      if (!payload?.sub || !payload.jti) return null;
+      if (token.id && payload.sub !== token.id) return null;
+
+      const active = await isRefreshTokenActive(payload.jti, payload.sub);
+      if (!active) return null;
+
+      await connectDB();
+      const dbUser = await User.findById(payload.sub).select("role credits suspended");
+      if (!dbUser || dbUser.suspended) return null;
+
+      token.id = payload.sub;
+      token.role = dbUser.role;
+      token.credits = dbUser.credits;
+      token.accessExp = now + ACCESS_TTL_SEC;
       return token;
     },
     async session({ session, token }) {

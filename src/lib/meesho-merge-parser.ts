@@ -1,6 +1,11 @@
 import { resolveOrderState } from "@/lib/pincode-state";
 import { parseNumber, pick } from "@/lib/csv-utils";
 import {
+  orderNetProfitExGst,
+  splitTaxableAndShipping,
+  sumLineEconomics,
+} from "@/lib/meesho-calc";
+import {
   aggregateByState,
   type ParsedOrderLine,
   type ReportSummary,
@@ -29,17 +34,12 @@ type OrderAccumulator = {
   productName?: string;
   sku?: string;
   quantity: number;
-  /** Taxable value ex-GST (forward sale) */
+  /** Product taxable ex-GST (excludes shipping component) */
   taxableAmount: number;
-  /** GST amount — informational, not deducted from profit */
   gst: number;
-  /** Taxable shipping ex-GST */
   shipping: number;
-  /** Return taxable ex-GST */
   returnAmount: number;
-  /** RTO / lost loss ex-GST */
   rtoAmount: number;
-  /** Meesho commission estimate ex-GST */
   commission: number;
   isReturn: boolean;
   isRto: boolean;
@@ -62,6 +62,7 @@ function subOrderKey(row: Record<string, string>): string | undefined {
     "sub order id",
     "sub order",
     "suborder num",
+    "suborder no",
   ]);
 }
 
@@ -118,6 +119,51 @@ function getOrCreate(map: Map<string, OrderAccumulator>, key: string): OrderAccu
   return acc;
 }
 
+function readGstAmounts(row: Record<string, string>) {
+  const totalTaxable = parseNumber(
+    pick(row, [
+      "total taxable sale value",
+      "tcs taxable amount",
+      "taxable amount",
+      "total taxable value",
+    ])
+  );
+  const tax = parseNumber(
+    pick(row, ["tax amount", "total tax", "gst amount", "igst amount", "cgst amount"])
+  );
+  const ship = parseNumber(
+    pick(row, [
+      "taxable shipping",
+      "shipping taxable",
+      "shipping charges",
+      "shipping",
+      "forward shipping",
+    ])
+  );
+  const commission = parseNumber(
+    pick(row, [
+      "commission",
+      "meesho commission",
+      "platform commission",
+      "commission amount",
+      "marketplace fee",
+    ])
+  );
+  return { totalTaxable, tax, ship, commission };
+}
+
+function addForwardTaxable(acc: OrderAccumulator, totalTaxable: number, ship: number) {
+  const { productTaxable, shipping } = splitTaxableAndShipping(totalTaxable, ship);
+  acc.taxableAmount += productTaxable;
+  acc.shipping += shipping;
+}
+
+function addReturnTaxable(acc: OrderAccumulator, amount: number) {
+  if (amount <= 0) return;
+  acc.returnAmount += amount;
+  acc.isReturn = true;
+}
+
 /** Meesho Orders CSV — Reason for Credit Entry */
 function buildOrderMeta(rows: Record<string, string>[]) {
   const meta = new Map<string, MeeshoOrderMeta>();
@@ -140,27 +186,35 @@ function buildOrderMeta(rows: Record<string, string>[]) {
     const supplier = parseNumber(
       pick(row, [
         "supplier discounted price (incl gst and commision)",
+        "supplier discounted price (incl gst and commission)",
         "supplier discounted price",
         "supplier listed price (incl. gst + commission)",
         "supplier listed price",
+        "supplier price",
       ])
     );
     const listed = parseNumber(
-      pick(row, ["supplier listed price (incl. gst + commission)", "supplier listed price"])
+      pick(row, [
+        "supplier listed price (incl. gst + commission)",
+        "supplier listed price",
+        "product price",
+        "listing price",
+      ])
     );
     if (supplier > 0) existing.supplierPrice = Math.max(existing.supplierPrice, supplier);
     if (listed > 0) existing.listedPrice = Math.max(existing.listedPrice, listed);
 
     existing.productName =
-      pick(row, ["product name", "product title"]) ?? existing.productName;
-    existing.sku = pick(row, ["sku", "catalog id"]) ?? existing.sku;
+      pick(row, ["product name", "product title", "product"]) ?? existing.productName;
+    existing.sku =
+      pick(row, ["sku", "catalog id", "style id", "product id"]) ?? existing.sku;
     existing.size =
       pick(row, ["size", "product size", "variant", "size name"]) ?? existing.size;
 
     const qty = parseInt(pick(row, ["quantity", "qty"]) ?? "1", 10);
     if (qty > 0) existing.quantity = qty;
 
-    const dateStr = pick(row, ["order date", "date"]);
+    const dateStr = pick(row, ["order date", "date", "order created at"]);
     existing.orderDate = parseDate(dateStr) ?? existing.orderDate;
 
     const { state } = extractState(row);
@@ -172,7 +226,7 @@ function buildOrderMeta(rows: Record<string, string>[]) {
   return meta;
 }
 
-function computeGstTotals(
+function computeGstFileTotals(
   gstSaleRows: Record<string, string>[],
   gstReturnRows: Record<string, string>[]
 ) {
@@ -182,18 +236,13 @@ function computeGstTotals(
   let adjustmentReturns = 0;
 
   for (const row of gstSaleRows) {
-    const taxable = parseNumber(
-      pick(row, ["total taxable sale value", "tcs taxable amount", "taxable amount"])
-    );
-    const tax = parseNumber(pick(row, ["tax amount", "total tax"]));
-    const ship = parseNumber(pick(row, ["taxable shipping", "shipping"]));
-
-    if (taxable >= 0) {
-      forwardTaxable += taxable;
+    const { totalTaxable, tax, ship } = readGstAmounts(row);
+    if (totalTaxable >= 0) {
+      forwardTaxable += totalTaxable;
       forwardGst += tax;
       forwardShip += ship;
     } else {
-      adjustmentReturns += Math.abs(taxable);
+      adjustmentReturns += Math.abs(totalTaxable);
     }
   }
 
@@ -202,11 +251,10 @@ function computeGstTotals(
   let returnShip = 0;
 
   for (const row of gstReturnRows) {
-    returnTaxable += Math.abs(
-      parseNumber(pick(row, ["total taxable sale value", "tcs taxable amount", "taxable amount"]))
-    );
-    returnGst += Math.abs(parseNumber(pick(row, ["tax amount", "total tax"])));
-    returnShip += Math.abs(parseNumber(pick(row, ["taxable shipping", "shipping"])));
+    const { totalTaxable, tax, ship } = readGstAmounts(row);
+    returnTaxable += Math.abs(totalTaxable);
+    returnGst += Math.abs(tax);
+    returnShip += Math.abs(ship);
   }
 
   returnTaxable += adjustmentReturns;
@@ -224,34 +272,49 @@ function computeGstTotals(
   };
 }
 
+/** Latest Reason for Credit Entry wins (Meesho Orders CSV timeline). */
+export function resolveFinalOrderStatus(meta: MeeshoOrderMeta): string {
+  const reasons = meta.reasons.map((r) => r.toUpperCase().trim()).filter(Boolean);
+  if (!reasons.length) return "UNKNOWN";
+  const last = reasons[reasons.length - 1];
+  if (last.includes("CANCEL")) return "CANCELLED";
+  if (last.includes("RTO")) return "RTO";
+  if (last.includes("EXCHANGE")) return "EXCHANGE";
+  if (last.includes("RETURN")) return "RETURN";
+  if (last === "DELIVERED") return "DELIVERED";
+  if (last === "LOST") return "LOST";
+  return last;
+}
+
 function countOrderStats(orderMeta: Map<string, MeeshoOrderMeta>) {
   let rtoCount = 0;
   let deliveredCount = 0;
   let cancelledCount = 0;
+  let returnCount = 0;
 
   for (const meta of orderMeta.values()) {
-    const reasons = meta.reasons.map((r) => r.toUpperCase());
-    if (reasons.some((r) => r.includes("RTO"))) rtoCount++;
-    else if (reasons.some((r) => r === "DELIVERED")) deliveredCount++;
-    else if (reasons.every((r) => r === "CANCELLED")) cancelledCount++;
+    const status = resolveFinalOrderStatus(meta);
+    if (status === "RTO") rtoCount++;
+    else if (status === "RETURN" || status === "EXCHANGE") returnCount++;
+    else if (status === "DELIVERED") deliveredCount++;
+    else if (status === "CANCELLED") cancelledCount++;
   }
 
-  return { rtoCount, deliveredCount, cancelledCount };
+  return { rtoCount, deliveredCount, cancelledCount, returnCount };
 }
 
 function applyOrderMeta(acc: OrderAccumulator, meta: MeeshoOrderMeta) {
-  const reasons = meta.reasons.map((r) => r.toUpperCase());
-  acc.orderReason = reasons[reasons.length - 1] ?? acc.orderReason;
+  const finalStatus = resolveFinalOrderStatus(meta);
+  acc.orderReason = finalStatus;
+  acc.orderStatus = finalStatus;
 
-  acc.isRto = reasons.some((r) => r.includes("RTO"));
+  acc.isCancelled = finalStatus === "CANCELLED";
+  acc.isRto = finalStatus === "RTO" || acc.isRto;
   acc.isReturn =
-    acc.isReturn ||
-    reasons.some((r) => r.includes("EXCHANGE") || r.includes("RETURN"));
-  const allCancelled =
-    reasons.length > 0 && reasons.every((r) => r === "CANCELLED");
-  const hasDelivered = (reasons as string[]).some((r) => r === "DELIVERED");
-  acc.isCancelled = allCancelled && !hasDelivered;
-  acc.isLost = reasons.some((r) => r === "LOST");
+    finalStatus === "RETURN" ||
+    finalStatus === "EXCHANGE" ||
+    acc.isReturn;
+  acc.isLost = finalStatus === "LOST";
 
   acc.productName = meta.productName ?? acc.productName;
   acc.sku = meta.sku ?? acc.sku;
@@ -260,10 +323,10 @@ function applyOrderMeta(acc: OrderAccumulator, meta: MeeshoOrderMeta) {
   if (meta.state && meta.state !== "Unknown") acc.state = meta.state;
 
   if (meta.listedPrice > 0 && meta.supplierPrice > 0) {
-    acc.commission = Math.max(acc.commission, meta.listedPrice - meta.supplierPrice);
+    const comm = meta.listedPrice - meta.supplierPrice;
+    if (comm > acc.commission) acc.commission = comm;
   }
   if (meta.supplierPrice > 0) acc.supplierPrice = meta.supplierPrice;
-  if (meta.reasons.length) acc.orderStatus = meta.reasons[meta.reasons.length - 1];
   if (meta.size) acc.size = meta.size;
 }
 
@@ -272,23 +335,20 @@ function ingestGstSaleRow(map: Map<string, OrderAccumulator>, row: Record<string
   if (!key) return;
 
   const acc = getOrCreate(map, key);
-  const taxable = parseNumber(
-    pick(row, ["total taxable sale value", "tcs taxable amount", "taxable amount"])
-  );
-  const tax = parseNumber(pick(row, ["tax amount", "total tax", "gst amount"]));
-  const ship = parseNumber(pick(row, ["taxable shipping", "shipping taxable", "shipping"]));
+  const { totalTaxable, tax, ship, commission } = readGstAmounts(row);
 
-  if (taxable < 0) {
-    acc.returnAmount = Math.max(acc.returnAmount, Math.abs(taxable));
-    acc.isReturn = true;
-  } else if (taxable > 0) {
-    acc.taxableAmount = Math.max(acc.taxableAmount, taxable);
+  if (totalTaxable < 0) {
+    addReturnTaxable(acc, Math.abs(totalTaxable));
+  } else if (totalTaxable > 0) {
+    addForwardTaxable(acc, totalTaxable, ship);
   }
 
-  if (tax !== 0) acc.gst = Math.max(acc.gst, Math.abs(tax));
-  if (ship !== 0) acc.shipping = Math.max(acc.shipping, Math.abs(ship));
+  if (tax !== 0) acc.gst += Math.abs(tax);
+  if (commission > 0) acc.commission += commission;
 
-  acc.sku = pick(row, ["hsn code", "sku"]) ?? acc.sku;
+  acc.sku = pick(row, ["hsn code", "sku", "product name"]) ?? acc.sku;
+  acc.productName = pick(row, ["product name", "description"]) ?? acc.productName;
+
   const qty = parseInt(pick(row, ["quantity", "qty"]) ?? "0", 10);
   if (qty > 0) acc.quantity = qty;
 
@@ -304,30 +364,71 @@ function ingestGstReturnRow(map: Map<string, OrderAccumulator>, row: Record<stri
   if (!key) return;
 
   const acc = getOrCreate(map, key);
-  acc.isReturn = true;
+  const { totalTaxable, tax, ship, commission } = readGstAmounts(row);
 
-  const returnTaxable = Math.abs(
-    parseNumber(pick(row, ["total taxable sale value", "tcs taxable amount", "taxable amount"]))
-  );
-  const returnTax = Math.abs(parseNumber(pick(row, ["tax amount", "total tax"])));
-  const returnShip = Math.abs(parseNumber(pick(row, ["taxable shipping", "shipping"])));
-
-  acc.returnAmount = Math.max(acc.returnAmount, returnTaxable);
-  acc.gst = Math.max(acc.gst, returnTax);
-  if (returnShip > 0) acc.shipping = Math.max(acc.shipping, returnShip);
+  addReturnTaxable(acc, Math.abs(totalTaxable));
+  if (tax !== 0) acc.gst += Math.abs(tax);
+  if (ship > 0) acc.shipping += ship;
+  if (commission > 0) acc.commission += commission;
 
   const { state, pincode } = extractState(row);
   if (state && state !== "Unknown") acc.state = state;
   if (pincode) acc.pincode = pincode;
 
   acc.orderDate =
-    parseDate(pick(row, ["cancel return date", "order date", "manifest date"])) ?? acc.orderDate;
+    parseDate(pick(row, ["cancel return date", "order date", "manifest date", "date"])) ??
+    acc.orderDate;
+}
+
+/**
+ * Real-world settlement rules after merging GST + order status.
+ */
+function finalizeOrderEconomics(acc: OrderAccumulator) {
+  if (acc.isCancelled) {
+    acc.taxableAmount = 0;
+    acc.returnAmount = 0;
+    acc.shipping = 0;
+    acc.commission = 0;
+    acc.rtoAmount = 0;
+    return;
+  }
+
+  // RTO: forward GST may exist; reverse product value, keep logistics cost as loss
+  if (acc.isRto) {
+    if (acc.taxableAmount > 0 && acc.returnAmount === 0) {
+      acc.returnAmount += acc.taxableAmount;
+      acc.taxableAmount = 0;
+    }
+    const logisticsCost = acc.shipping + acc.commission;
+    if (logisticsCost > acc.rtoAmount) {
+      acc.rtoAmount = logisticsCost;
+    }
+  }
+
+  if (acc.isLost) {
+    const loss = acc.taxableAmount + acc.shipping + acc.commission;
+    acc.rtoAmount = Math.max(acc.rtoAmount, loss);
+    acc.taxableAmount = 0;
+    acc.returnAmount = 0;
+  }
+
+  // Customer return with only return file (no forward in sale file for same month)
+  if (acc.isReturn && acc.returnAmount > 0 && acc.taxableAmount > 0) {
+    acc.returnAmount = Math.max(acc.returnAmount, acc.taxableAmount);
+    acc.taxableAmount = 0;
+  }
 }
 
 function accToLine(acc: OrderAccumulator): ParsedOrderLine {
-  /** Net profit EX-GST — GST is pass-through, not deducted */
-  const netProfit =
-    acc.taxableAmount - acc.returnAmount - acc.shipping - acc.rtoAmount - acc.commission;
+  finalizeOrderEconomics(acc);
+
+  const netProfit = orderNetProfitExGst({
+    saleAmount: acc.taxableAmount,
+    returnAmount: acc.returnAmount,
+    shipping: acc.shipping,
+    commission: acc.commission,
+    rtoAmount: acc.rtoAmount,
+  });
 
   return {
     orderId: acc.subOrderId,
@@ -343,6 +444,7 @@ function accToLine(acc: OrderAccumulator): ParsedOrderLine {
     netProfit,
     isReturn: acc.isReturn,
     isRto: acc.isRto,
+    isCancelled: acc.isCancelled,
     orderDate: acc.orderDate,
     state: acc.state,
     pincode: acc.pincode,
@@ -363,7 +465,6 @@ export function parseMeeshoMergedReports(input: MeeshoMergeInput): {
   for (const row of input.gstSaleRows ?? []) ingestGstSaleRow(map, row);
   for (const row of input.gstReturnRows ?? []) ingestGstReturnRow(map, row);
 
-  // Enrich with order CSV (status, product, state)
   for (const [key, meta] of orderMeta) {
     const acc = getOrCreate(map, key);
     applyOrderMeta(acc, meta);
@@ -375,55 +476,57 @@ export function parseMeeshoMergedReports(input: MeeshoMergeInput): {
     );
   }
 
-  const lines = [...map.values()]
-    .filter((acc) => {
-      if (acc.isCancelled && acc.taxableAmount === 0 && !acc.isReturn) return false;
-      return acc.taxableAmount > 0 || acc.returnAmount > 0 || acc.isReturn || acc.isRto;
-    })
-    .map(accToLine);
+  const lines = [...map.values()].map(accToLine).filter((line) => {
+    if (line.isCancelled || line.orderStatus?.toUpperCase() === "CANCELLED") {
+      return true;
+    }
+    return (
+      line.saleAmount > 0 ||
+      line.returnAmount > 0 ||
+      line.rtoAmount > 0 ||
+      line.isReturn ||
+      line.isRto
+    );
+  });
 
   if (lines.length === 0) {
     throw new Error("No billable orders found in uploaded files.");
   }
 
-  const gst = computeGstTotals(input.gstSaleRows ?? [], input.gstReturnRows ?? []);
+  const gst = computeGstFileTotals(input.gstSaleRows ?? [], input.gstReturnRows ?? []);
   const stats = countOrderStats(orderMeta);
+  const totals = sumLineEconomics(lines);
 
-  const grossRevenueExGst = gst.forwardTaxable;
-  const returnCharges = gst.returnTaxable;
-  const shippingCharges = gst.netShip;
-  const gstCollected = gst.netGst;
-  const netTaxableSales = gst.netTaxable;
-  /** Net profit ex-GST = taxable sales − returns − shipping (GST shown separately) */
-  const netProfit = netTaxableSales - shippingCharges;
-
-  const returnCount = (input.gstReturnRows ?? []).length;
-  const rtoCount = stats.rtoCount;
-  const totalOrders = (input.gstSaleRows ?? []).length;
+  const grossOrders = orderMeta.size || lines.length;
+  const cancelledCount = stats.cancelledCount || lines.filter((l) => l.isCancelled).length;
+  const netOrders = Math.max(0, grossOrders - cancelledCount);
 
   const summary: ReportSummary = {
-    grossRevenue: grossRevenueExGst,
-    marketplaceCharges: lines.reduce((s, l) => s + l.commission, 0),
-    shippingCharges: gst.forwardShip,
-    returnCharges,
-    rtoLoss: 0,
-    gstImpact: gstCollected,
-    profitBeforeCosts: netProfit,
+    grossRevenue: totals.grossProductSales,
+    marketplaceCharges: totals.marketplaceCharges,
+    shippingCharges: totals.shippingCharges,
+    returnCharges: totals.returnCharges,
+    rtoLoss: totals.rtoLoss,
+    gstImpact: gst.netGst,
+    profitBeforeCosts: totals.netProfit,
     productCostTotal: 0,
     packCostTotal: 0,
-    netProfit,
-    totalOrders,
-    returnCount,
-    rtoCount,
-    returnRate: totalOrders ? (returnCount / totalOrders) * 100 : 0,
-    rtoRate: orderMeta.size ? (rtoCount / orderMeta.size) * 100 : 0,
-    ordersByState: aggregateByState(lines.filter((l) => l.saleAmount > 0)),
-    netTaxableSales,
-    gstSaleTotal: grossRevenueExGst,
-    gstReturnTotal: returnCharges,
-    grossRevenueExGst,
-    gstCollected,
-    shippingExGst: shippingCharges,
+    netProfit: totals.netProfit,
+    totalOrders: netOrders,
+    grossOrderCount: grossOrders,
+    cancelledCount,
+    netOrders,
+    returnCount: stats.returnCount || totals.returnCount,
+    rtoCount: stats.rtoCount || totals.rtoCount,
+    returnRate: grossOrders ? ((stats.returnCount || totals.returnCount) / grossOrders) * 100 : 0,
+    rtoRate: grossOrders ? (stats.rtoCount / grossOrders) * 100 : 0,
+    ordersByState: aggregateByState(lines),
+    netTaxableSales: gst.netTaxable,
+    gstSaleTotal: gst.forwardTaxable,
+    gstReturnTotal: gst.returnTaxable,
+    grossRevenueExGst: gst.forwardTaxable,
+    gstCollected: gst.netGst,
+    shippingExGst: gst.netShip,
   };
 
   return { lines, summary };

@@ -6,6 +6,8 @@ import { requireSession } from "@/lib/session";
 import { connectDB } from "@/lib/mongodb";
 import { ProductSkuCost, Report } from "@/models";
 import {
+  bulkSaveSkuCosts,
+  dedupeSkuCostRows,
   getSkuCostRows,
   normalizeSkuSize,
   parseSkuCostCsv,
@@ -54,29 +56,8 @@ export async function saveProductCosts(
     );
   }
 
-  for (const row of rows) {
-    const { sku, size } = normalizeSkuSize(row.sku, row.size);
-    let packCost = Math.max(0, row.packCost ?? 0);
-    const productCost = Math.max(0, row.productCost ?? 0);
-
-    if (!opts?.applyPackToAll && opts?.fillMissingPack && packCost <= 0 && packDefault > 0) {
-      packCost = packDefault;
-    }
-
-    await ProductSkuCost.findOneAndUpdate(
-      { reportId: reportObjectId, sku, size },
-      {
-        $set: {
-          userId: userObjectId,
-          productName: row.productName?.trim() || sku,
-          productCost,
-          packCost,
-        },
-        $setOnInsert: { sku, size },
-      },
-      { upsert: true }
-    );
-  }
+  const { rows: uniqueRows } = dedupeSkuCostRows(rows);
+  await bulkSaveSkuCosts(session.user.id, reportId, uniqueRows);
 
   await recalculateReportWithProductCosts(session.user.id, reportId);
 
@@ -124,17 +105,40 @@ export async function exportProductCostsCsv(reportId: string) {
     session.user.id,
     new mongoose.Types.ObjectId(reportId)
   );
-  const { rows } = await getSkuCostRows(session.user.id, reportId, { pageSize: 50_000 });
+  const { rows } = await getSkuCostRows(session.user.id, reportId, { pageSize: 100_000 });
   const safeName = report.name.replace(/[^\w\-]+/g, "_").slice(0, 40);
-  return { csv: skuRowsToCsv(rows), fileName: `product-costs-${safeName}.csv` };
+  return {
+    csv: skuRowsToCsv(rows),
+    fileName: `product-costs-${safeName}.csv`,
+    rowCount: rows.length,
+  };
 }
 
 export async function importProductCostsCsv(reportId: string, csvText: string) {
-  const rows = parseSkuCostCsv(csvText);
-  if (!rows.length) {
-    return { error: "No valid rows in CSV. Use columns: SKU, Size, Product Name, Product Cost, Packaging Cost." };
+  const session = await requireSession();
+  await assertReportOwner(session.user.id, reportId);
+
+  const { rows: parsed, duplicateRows } = parseSkuCostCsv(csvText);
+  if (!parsed.length) {
+    return {
+      error:
+        "No valid rows in CSV. Keep header row with: Cost Row ID, SKU, Size, Product Cost, Packaging Cost.",
+    };
   }
-  const res = await saveProductCosts(reportId, rows);
-  if ("error" in res && res.error) return res;
-  return { success: true, imported: rows.length };
+
+  const result = await bulkSaveSkuCosts(session.user.id, reportId, parsed);
+  await recalculateReportWithProductCosts(session.user.id, reportId);
+
+  revalidatePath(`/dashboard/reports/${reportId}`);
+  revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/product-costs");
+
+  return {
+    success: true,
+    imported: result.saved,
+    duplicateRowsMerged: duplicateRows,
+    matchedById: result.matchedById,
+    matchedBySku: result.matchedBySku,
+    unmatched: result.unmatched,
+  };
 }

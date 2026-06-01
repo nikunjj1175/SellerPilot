@@ -18,11 +18,36 @@ export type SkuCostRow = {
   packCost: number;
 };
 
+/** Trim only — keep Meesho SKU punctuation: ' . , ^ etc. */
+export function normalizeSku(sku: string) {
+  return String(sku ?? "").replace(/^\s+|\s+$/g, "");
+}
+
+/** Size: trim + uppercase so M/m match */
+export function normalizeSize(size = "") {
+  return String(size ?? "")
+    .trim()
+    .toUpperCase();
+}
+
 export function normalizeSkuSize(sku: string, size = "") {
   return {
-    sku: sku.trim(),
-    size: size.trim(),
+    sku: normalizeSku(sku),
+    size: normalizeSize(size),
   };
+}
+
+export function dedupeSkuCostRows(rows: SkuCostRow[]) {
+  const map = new Map<string, SkuCostRow>();
+  let duplicateRows = 0;
+
+  for (const row of rows) {
+    const key = row.id?.trim() || costKey(row.sku, row.size);
+    if (map.has(key)) duplicateRows++;
+    map.set(key, { ...row, ...normalizeSkuSize(row.sku, row.size) });
+  }
+
+  return { rows: [...map.values()], duplicateRows };
 }
 
 export function costKey(sku: string, size = "") {
@@ -176,10 +201,20 @@ export async function recalculateReportWithProductCosts(
   const costs = await ProductSkuCost.find({ reportId: reportObjectId }).lean();
   const costMap = new Map<string, { productCost: number; packCost: number }>();
   for (const c of costs) {
-    costMap.set(costKey(c.sku, c.size ?? ""), {
+    const entry = {
       productCost: c.productCost ?? 0,
       packCost: c.packCost ?? 0,
-    });
+    };
+    costMap.set(costKey(c.sku, c.size ?? ""), entry);
+    costMap.set(costKey(c.sku ?? "", c.size ?? ""), entry);
+  }
+
+  function lookupCosts(lineSku: string, lineSize: string) {
+    const { sku, size } = normalizeSkuSize(lineSku, lineSize);
+    return (
+      costMap.get(costKey(sku, size)) ??
+      costMap.get(costKey(lineSku, lineSize)) ?? { productCost: 0, packCost: 0 }
+    );
   }
 
   const lines = await OrderLine.find({ reportId: reportObjectId });
@@ -190,9 +225,7 @@ export async function recalculateReportWithProductCosts(
   const bulkOps: Parameters<typeof OrderLine.bulkWrite>[0] = [];
 
   for (const line of lines) {
-    const sku = line.sku ?? "unknown";
-    const size = line.size ?? "";
-    const costsForSku = costMap.get(costKey(sku, size)) ?? { productCost: 0, packCost: 0 };
+    const costsForSku = lookupCosts(line.sku ?? "unknown", line.size ?? "");
     const qty = Math.max(1, line.quantity);
     const status = (line.orderStatus ?? "").toUpperCase();
     const skipCost =
@@ -288,19 +321,39 @@ export async function recalculateReportWithProductCosts(
 }
 
 export function skuRowsToCsv(rows: SkuCostRow[]) {
-  const header = "SKU,Size,Product Name,Product Cost (Incl GST),Packaging Cost (Incl GST)";
+  const header =
+    "Cost Row ID,SKU,Size,Product Name,Product Cost (Incl GST),Packaging Cost (Incl GST)";
   const body = rows
-    .map((r) =>
-      [
-        csvCell(r.sku),
-        csvCell(r.size),
+    .map((r) => {
+      const sku = normalizeSku(r.sku);
+      const size = normalizeSize(r.size);
+      return [
+        csvCell(r.id ?? ""),
+        csvCellSku(sku),
+        csvCell(size),
         csvCell(r.productName),
         (r.productCost ?? 0).toFixed(2),
         (r.packCost ?? 0).toFixed(2),
-      ].join(",")
-    )
+      ].join(",");
+    })
     .join("\n");
   return `\uFEFF${header}\n${body}`;
+}
+
+/** Always quote SKU so Excel does not strip ' . , ^ */
+function csvCellSku(value: string) {
+  const v = String(value ?? "");
+  if (!v) return "";
+  return `"${v.replace(/"/g, '""')}"`;
+}
+
+function cleanExcelText(value: string) {
+  let v = String(value ?? "");
+  if (v.startsWith('="') && v.endsWith('"')) {
+    v = v.slice(2, -1);
+  }
+  if (v.startsWith("\t")) v = v.slice(1);
+  return v.replace(/^\s+|\s+$/g, "");
 }
 
 function csvCell(value: string) {
@@ -344,6 +397,7 @@ function splitCsvLine(line: string): string[] {
 }
 
 type ColumnMap = {
+  id: number;
   sku: number;
   size: number;
   name: number;
@@ -352,19 +406,21 @@ type ColumnMap = {
 };
 
 function detectColumns(headerParts: string[]): ColumnMap | null {
-  const h = headerParts.map((p) => p.toLowerCase());
+  const h = headerParts.map((p) => p.toLowerCase().trim());
   const idx = (...needles: string[]) =>
     h.findIndex((col) => needles.some((n) => col.includes(n)));
 
   const sku = idx("sku");
   if (sku < 0) return null;
 
+  const id = idx("cost row id", "row id");
   const size = idx("size");
-  const name = idx("product name", "productname", "product");
+  const name = idx("product name", "productname");
   const productCost = idx("product cost", "purchase price", "purchase");
-  const packCost = idx("packaging", "packing", "pack cost", "pack cost");
+  const packCost = idx("packaging cost", "packaging", "packing cost", "pack cost");
 
   return {
+    id,
     sku,
     size: size >= 0 ? size : 1,
     name: name >= 0 ? name : 2,
@@ -379,13 +435,13 @@ function parseMoney(raw: string) {
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
-export function parseSkuCostCsv(text: string): SkuCostRow[] {
+export function parseSkuCostCsv(text: string): { rows: SkuCostRow[]; duplicateRows: number } {
   const lines = text
     .replace(/^\uFEFF/, "")
     .trim()
     .split(/\r?\n/)
     .filter((l) => l.trim().length > 0);
-  if (!lines.length) return [];
+  if (!lines.length) return { rows: [], duplicateRows: 0 };
 
   const firstParts = splitCsvLine(lines[0]);
   const hasHeader = firstParts.some((p) => p.toLowerCase().includes("sku"));
@@ -393,6 +449,7 @@ export function parseSkuCostCsv(text: string): SkuCostRow[] {
   const startIdx = hasHeader ? 1 : 0;
 
   const map: ColumnMap = cols ?? {
+    id: -1,
     sku: 0,
     size: 1,
     name: 2,
@@ -404,10 +461,20 @@ export function parseSkuCostCsv(text: string): SkuCostRow[] {
 
   for (let i = startIdx; i < lines.length; i++) {
     const parts = splitCsvLine(lines[i]);
-    const { sku, size } = normalizeSkuSize(parts[map.sku] ?? "", parts[map.size] ?? "");
+    if (parts.every((p) => !p.trim())) continue;
+
+    const { sku, size } = normalizeSkuSize(
+      cleanExcelText(parts[map.sku] ?? ""),
+      cleanExcelText(parts[map.size] ?? "")
+    );
     if (!sku) continue;
 
+    const idRaw = map.id >= 0 ? parts[map.id]?.trim() : "";
+    const id =
+      idRaw && mongoose.Types.ObjectId.isValid(idRaw) ? idRaw : undefined;
+
     rows.push({
+      id,
       sku,
       size,
       productName: (parts[map.name] ?? sku).trim() || sku,
@@ -416,7 +483,108 @@ export function parseSkuCostCsv(text: string): SkuCostRow[] {
     });
   }
 
-  return rows;
+  return dedupeSkuCostRows(rows);
+}
+
+function findExistingSkuRow(
+  existing: { _id: mongoose.Types.ObjectId; sku: string; size: string }[],
+  sku: string,
+  size: string
+) {
+  const key = costKey(sku, size);
+  for (const doc of existing) {
+    if (costKey(doc.sku, doc.size ?? "") === key) return doc;
+  }
+  for (const doc of existing) {
+    if (normalizeSku(doc.sku) === sku && normalizeSize(doc.size ?? "") === size) return doc;
+  }
+  return null;
+}
+
+export async function bulkSaveSkuCosts(
+  userId: string,
+  reportId: string,
+  rows: SkuCostRow[]
+) {
+  await connectDB();
+  const reportObjectId = new mongoose.Types.ObjectId(reportId);
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  const existing = await ProductSkuCost.find({
+    reportId: reportObjectId,
+    userId: userObjectId,
+  })
+    .select("_id sku size")
+    .lean<{ _id: mongoose.Types.ObjectId; sku: string; size: string }[]>();
+
+  const ops: Parameters<typeof ProductSkuCost.bulkWrite>[0] = [];
+  let matchedById = 0;
+  let matchedBySku = 0;
+  let unmatched = 0;
+
+  for (const row of rows) {
+    const sku = normalizeSku(row.sku);
+    const size = normalizeSize(row.size);
+    const productCost = Math.max(0, row.productCost ?? 0);
+    const packCost = Math.max(0, row.packCost ?? 0);
+    const productName = row.productName?.trim() || sku;
+
+    if (row.id && mongoose.Types.ObjectId.isValid(row.id)) {
+      matchedById++;
+      ops.push({
+        updateOne: {
+          filter: {
+            _id: new mongoose.Types.ObjectId(row.id),
+            reportId: reportObjectId,
+            userId: userObjectId,
+          },
+          update: {
+            $set: {
+              productCost,
+              packCost,
+              productName,
+            },
+          },
+        },
+      });
+      continue;
+    }
+
+    const found = findExistingSkuRow(existing, sku, size);
+    if (found) {
+      matchedBySku++;
+      ops.push({
+        updateOne: {
+          filter: { _id: found._id },
+          update: { $set: { productCost, packCost, productName } },
+        },
+      });
+      continue;
+    }
+
+    if (!sku) {
+      unmatched++;
+      continue;
+    }
+
+    matchedBySku++;
+    ops.push({
+      updateOne: {
+        filter: { reportId: reportObjectId, userId: userObjectId, sku, size },
+        update: {
+          $set: { productCost, packCost, productName },
+          $setOnInsert: { userId: userObjectId, reportId: reportObjectId, sku, size },
+        },
+        upsert: true,
+      },
+    });
+  }
+
+  if (ops.length) {
+    await ProductSkuCost.bulkWrite(ops, { ordered: false });
+  }
+
+  return { saved: ops.length, matchedById, matchedBySku, unmatched };
 }
 
 export function countLossSkus(lines: ParsedOrderLine[]) {

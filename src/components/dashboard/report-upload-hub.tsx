@@ -23,7 +23,7 @@ export function ReportUploadHub({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+        <h1 className="font-semibold text-2xl md:text-3xl font-bold text-foreground">
           Upload New Report
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
@@ -38,7 +38,7 @@ export function ReportUploadHub({
           </span>
           <div className="flex items-center gap-2 mb-2 pr-24">
             <Sparkles className="h-5 w-5 text-emerald-600" />
-            <h2 className="font-display text-xl font-bold">Generate Automatically</h2>
+            <h2 className="font-semibold text-xl font-bold">Generate Automatically</h2>
           </div>
           <p className="text-sm text-muted-foreground max-w-xl mb-4">
             Automatically fetch report data from your Meesho account — encrypted storage and live
@@ -76,7 +76,7 @@ export function ReportUploadHub({
         <div className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm flex flex-col">
           <div className="flex items-center gap-2 mb-2">
             <Upload className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold">Upload Files Manually</h2>
+            <h2 className="font-semibold text-lg font-bold">Upload Files Manually</h2>
           </div>
           <p className="text-sm text-muted-foreground flex-1 leading-relaxed">
             Use when you have <strong>Orders CSV</strong>, <strong>tcs_sales.xlsx</strong>, and optional

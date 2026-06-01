@@ -133,7 +133,7 @@ export function IndiaOrdersMap({ data, className, showTable = true }: Props) {
 
         {hoveredStats ? (
           <div className="absolute left-3 top-12 z-20 rounded-xl border border-primary/40 bg-card/95 px-4 py-3 shadow-2xl backdrop-blur-md min-w-[220px]">
-            <p className="font-display font-bold text-lg text-primary">{hoveredStats.state}</p>
+            <p className="font-semibold font-bold text-lg text-primary">{hoveredStats.state}</p>
             <div className="mt-2 space-y-1.5 text-sm">
               <p>
                 <span className="text-muted-foreground">Orders: </span>

@@ -54,7 +54,7 @@ export default async function ProductCostsPage({
   if (!completed.length) {
     return (
       <div className="space-y-4">
-        <h1 className="font-display text-2xl font-bold">Product Costs</h1>
+        <h1 className="font-semibold text-2xl font-bold">Product Costs</h1>
         <Card className="rounded-2xl border-dashed">
           <CardContent className="py-12 text-center text-muted-foreground">
             <p>Upload a Meesho report first, then add product & packaging costs per SKU.</p>

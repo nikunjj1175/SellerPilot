@@ -58,6 +58,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 AUTH_SECRET="paste-output-here"
 ```
 
+Optional separate secret for **refresh JWT** (defaults to `AUTH_SECRET` if omitted):
+
+```env
+JWT_REFRESH_SECRET="another-long-random-string"
+```
+
+Login issues a **refresh token** (httpOnly cookie). Dashboard and APIs require a valid refresh JWT; session renews via `POST /api/auth/refresh` every ~15 minutes.
+
 ---
 
 ## 3. AUTH_URL & APP_URL (Required)
