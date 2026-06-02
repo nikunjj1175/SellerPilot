@@ -9,7 +9,6 @@ import {
   bulkSaveSkuCosts,
   dedupeSkuCostRows,
   getSkuCostRows,
-  normalizeSkuSize,
   parseSkuCostCsv,
   recalculateReportWithProductCosts,
   seedSkuCostsFromOrderLines,

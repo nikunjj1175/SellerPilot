@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { auth } from "@/auth";
+import { getAuthUserFromRequest, unauthorizedJson } from "@/lib/auth-jwt";
 import { connectDB } from "@/lib/mongodb";
 import { User, Report, OrderLine, CreditTransaction } from "@/models";
 import type { IReport } from "@/models/Report";
@@ -12,10 +12,8 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authUser = await getAuthUserFromRequest(req);
+  if (!authUser) return unauthorizedJson();
 
   const { id } = await params;
   const { searchParams } = new URL(req.url);
@@ -25,7 +23,7 @@ export async function GET(
   await connectDB();
   const report = await Report.findOne({
     _id: id,
-    userId: session.user.id,
+    userId: authUser.id,
     status: "COMPLETED",
   }).lean<IReport | null>();
 
@@ -37,14 +35,14 @@ export async function GET(
     format === "pdf" ? CREDIT_COSTS.PDF_EXPORT : CREDIT_COSTS.EXCEL_EXPORT;
 
   if (!skipCharge) {
-    const user = await User.findById(session.user.id);
-    if (!user || user.credits < creditCost) {
+    const dbUser = await User.findById(authUser.id);
+    if (!dbUser || dbUser.credits < creditCost) {
       return NextResponse.json({ error: `Need ${creditCost} credits` }, { status: 402 });
     }
 
-    await User.findByIdAndUpdate(session.user.id, { $inc: { credits: -creditCost } });
+    await User.findByIdAndUpdate(authUser.id, { $inc: { credits: -creditCost } });
     await CreditTransaction.create({
-      userId: new mongoose.Types.ObjectId(session.user.id),
+      userId: new mongoose.Types.ObjectId(authUser.id),
       amount: -creditCost,
       type: "USAGE",
       description: `${format.toUpperCase()} export: ${report.name}`,
