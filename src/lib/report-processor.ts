@@ -6,6 +6,7 @@ import { seedSkuCostsFromOrderLines } from "@/lib/product-costs";
 import { parseMeeshoFromFiles } from "@/lib/meesho-merge-parser";
 import { parseMeeshoCsv } from "@/lib/meesho-parser";
 import type { ParsedOrderLine, ReportSummary } from "@/lib/meesho-parser";
+import { finalizeReportSummary } from "@/lib/report-summary";
 import { notifyReportReady } from "@/lib/report-notify";
 
 const BATCH_SIZE = 500;
@@ -50,8 +51,20 @@ export async function processReportJob(payload: {
   creditCost: number;
   storeBlob?: boolean;
   meeshoFiles?: MeeshoFilePayload;
+  reportMonth?: string;
+  miscCosts?: number;
 }) {
-  const { reportId, userId, fileName, creditCost, storeBlob, meeshoFiles, csvText = "" } = payload;
+  const {
+    reportId,
+    userId,
+    fileName,
+    creditCost,
+    storeBlob,
+    meeshoFiles,
+    csvText = "",
+    reportMonth,
+    miscCosts = 0,
+  } = payload;
 
   await connectDB();
   const reportObjectId = new mongoose.Types.ObjectId(reportId);
@@ -67,7 +80,9 @@ export async function processReportJob(payload: {
       blobUrl = blob.url;
     }
 
-    const { lines, summary } = await parseMeeshoReport(meeshoFiles, csvText);
+    const parsed = await parseMeeshoReport(meeshoFiles, csvText);
+    const summary = finalizeReportSummary(parsed.summary, { reportMonth, miscCosts });
+    const lines = parsed.lines;
 
     if (lines.length === 0) {
       throw new Error("No rows found. Check Meesho file format.");

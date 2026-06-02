@@ -148,7 +148,8 @@ export async function getSkuCostRows(
   await connectDB();
   const reportObjectId = new mongoose.Types.ObjectId(reportId);
   const page = Math.max(1, opts?.page ?? 1);
-  const pageSize = Math.min(100, Math.max(10, opts?.pageSize ?? 100));
+  // UI uses 100, but export needs a larger cap.
+  const pageSize = Math.min(100_000, Math.max(10, opts?.pageSize ?? 100));
   const search = opts?.search?.trim().toLowerCase();
 
   const query: Record<string, unknown> = {
@@ -294,6 +295,7 @@ export async function recalculateReportWithProductCosts(
       netProfit: lineProfitWithCosts(l, c.productCost, c.packCost),
       isReturn: l.isReturn,
       isRto: l.isRto,
+      isCancelled: l.isCancelled,
       orderDate: l.orderDate,
       state: l.state,
       pincode: l.pincode,
@@ -305,15 +307,17 @@ export async function recalculateReportWithProductCosts(
     };
   });
 
+  const misc = oldSummary.miscCostsTotal ?? 0;
   const hasCosts = productCostTotal > 0 || packCostTotal > 0;
+  const netAfterCosts = hasCosts ? netProfitSum : profitBeforeCosts;
   const summary: ReportSummary = {
     ...oldSummary,
     profitBeforeCosts,
     productCostTotal,
     packCostTotal,
-    netProfit: hasCosts ? netProfitSum : profitBeforeCosts,
+    netProfit: netAfterCosts - misc,
     lossSkuCount: countLossSkus(parsedLines),
-    ordersByState: aggregateByState(parsedLines.filter((l) => l.saleAmount > 0)),
+    ordersByState: aggregateByState(parsedLines),
   };
 
   await Report.findByIdAndUpdate(reportObjectId, { summary });

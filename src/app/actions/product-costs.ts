@@ -86,7 +86,7 @@ export async function loadProductCostPage(
   const data = await getSkuCostRows(session.user.id, reportId, {
     search,
     page,
-    pageSize: 100,
+    pageSize: 50,
   });
 
   return {
@@ -104,7 +104,11 @@ export async function exportProductCostsCsv(reportId: string) {
     session.user.id,
     new mongoose.Types.ObjectId(reportId)
   );
-  const { rows } = await getSkuCostRows(session.user.id, reportId, { pageSize: 100_000 });
+  // Export must include ALL rows, regardless of UI pagination.
+  const { rows } = await getSkuCostRows(session.user.id, reportId, {
+    page: 1,
+    pageSize: 100_000,
+  });
   const safeName = report.name.replace(/[^\w\-]+/g, "_").slice(0, 40);
   return {
     csv: skuRowsToCsv(rows),

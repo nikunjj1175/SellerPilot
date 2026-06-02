@@ -74,7 +74,9 @@ export async function adminToggleCoupon(couponId: string, active: boolean) {
 export async function adminDeleteReport(reportId: string) {
   await requireAdmin();
   await connectDB();
+  const { ProductSkuCost } = await import("@/models");
   await OrderLine.deleteMany({ reportId });
+  await ProductSkuCost.deleteMany({ reportId });
   await Report.findByIdAndDelete(reportId);
   revalidatePath("/admin/reports");
   return { success: true };

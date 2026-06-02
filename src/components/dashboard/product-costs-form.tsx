@@ -221,11 +221,6 @@ export function ProductCostsForm({
 
       <Card className="rounded-2xl border-border/80 shadow-sm">
         <CardContent className="pt-6 space-y-4">
-          <p className="text-xs text-muted-foreground rounded-lg bg-muted/50 border border-border/60 px-3 py-2">
-            <strong>CSV tip:</strong> Export → edit → Import. Keep <strong>Cost Row ID</strong>. SKU
-            with <strong>&apos; . , ^</strong> is kept exactly — do not re-type SKU in Excel; only
-            edit cost columns.
-          </p>
           <form onSubmit={onSearch} className="flex gap-2">
             <Input
               name="q"
@@ -278,31 +273,33 @@ export function ProductCostsForm({
             <span>
               Showing {start}-{end} of {total} SKU-size rows
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-lg"
-                disabled={page <= 1 || pending}
-                onClick={() => goPage(page - 1)}
-              >
-                Previous {pageSize}
-              </Button>
-              <span className="text-xs font-medium px-2">
-                Page {page} / {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-lg"
-                disabled={page >= totalPages || pending}
-                onClick={() => goPage(page + 1)}
-              >
-                Next {pageSize}
-              </Button>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg"
+                  disabled={page <= 1 || pending}
+                  onClick={() => goPage(page - 1)}
+                >
+                  Previous {pageSize}
+                </Button>
+                <span className="text-xs font-medium px-2">
+                  Page {page} / {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg"
+                  disabled={page >= totalPages || pending}
+                  onClick={() => goPage(page + 1)}
+                >
+                  Next {pageSize}
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-border/60">
@@ -369,20 +366,22 @@ export function ProductCostsForm({
             Showing {rows.length} of {total} SKU-size rows across {uniqueSkus} unique SKUs · Page{" "}
             {page} of {totalPages}
           </p>
-
-          <div className="flex justify-end pt-2">
-            <Button
-              type="button"
-              className="rounded-xl px-8 shadow-md"
-              disabled={pending}
-              onClick={() => handleSave()}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {pending ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
         </CardContent>
       </Card>
+
+      <div className="sticky bottom-0 z-50 pb-4">
+        <div className="rounded-2xl border border-border/70 bg-card/90 backdrop-blur px-4 py-3 shadow-lg flex items-center justify-end">
+          <Button
+            type="button"
+            className="rounded-xl px-8 shadow-md"
+            disabled={pending}
+            onClick={() => handleSave()}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {pending ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import {
   defaultReportName,
   formatReportMonth,
 } from "@/lib/report-month";
-import { Play, FileArchive, FileSpreadsheet } from "lucide-react";
+import { Play, FileArchive, FileSpreadsheet, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const FILE_ACCEPT = ".xlsx,.xls,.csv,.txt,.zip";
@@ -25,7 +25,7 @@ type Props = {
 
 function StepBadge({ n }: { n: number }) {
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700 text-sm font-bold border border-rose-200">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-sm font-bold border border-primary/25">
       {n}
     </span>
   );
@@ -108,7 +108,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
     <form
       ref={formRef}
       onSubmit={onSubmit}
-      className="rounded-2xl border-2 border-primary/20 bg-card shadow-sm overflow-hidden"
+      className="rounded-2xl border-2 border-primary/20 bg-card shadow-sm overflow-hidden animate-slide-up"
     >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 bg-muted/30 px-5 py-4">
         <div>
@@ -297,7 +297,7 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
                 className="rounded-xl"
               />
               <p className="text-xs text-muted-foreground">
-                Fixed monthly expenses (rent, salary, etc.) — saved with report notes for your reference.
+                Deducted from net profit (ads, rent, salary, etc.).
               </p>
             </div>
             <div className="space-y-2">
@@ -332,7 +332,14 @@ export function ManualUploadWizard({ defaultMonth, onHide }: Props) {
           disabled={!canProcess}
           className="rounded-xl px-8 h-11 text-base shadow-md"
         >
-          {pending ? "Processing…" : "Process Files"}
+          {pending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Merging files & calculating…
+            </>
+          ) : (
+            "Generate P&L report"
+          )}
         </Button>
       </div>
     </form>
