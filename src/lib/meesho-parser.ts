@@ -67,6 +67,11 @@ export type ReportSummary = {
   /** Profit before product & pack costs (ex-GST) */
   profitBeforeCosts?: number;
   lossSkuCount?: number;
+  /** Report month YYYY-MM */
+  reportMonth?: string;
+  /** Extra monthly costs (ads, rent) deducted from net profit */
+  miscCostsTotal?: number;
+  deliveredCount?: number;
 };
 
 export function parseMeeshoCsv(csvText: string): {

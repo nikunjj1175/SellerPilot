@@ -58,13 +58,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 AUTH_SECRET="paste-output-here"
 ```
 
-Optional separate secret for **refresh JWT** (defaults to `AUTH_SECRET` if omitted):
+Login uses **NextAuth JWT sessions** (encrypted cookie, 30 days). Protected pages and APIs read that session — no background refresh API calls.
 
-```env
-JWT_REFRESH_SECRET="another-long-random-string"
-```
-
-Login issues a **refresh token** (httpOnly cookie). Dashboard and APIs require a valid refresh JWT; session renews via `POST /api/auth/refresh` every ~15 minutes.
+**API routes (for developers):** use `getAuthUserFromRequest(req)` from `@/lib/auth-jwt`, or `getAuthUser()` / `requireSession()` on the server.
 
 ---
 

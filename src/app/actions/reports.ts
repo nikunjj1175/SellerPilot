@@ -28,6 +28,9 @@ export async function uploadAndProcessReport(formData: FormData) {
 
   const reportName = (formData.get("name") as string) || "";
   const reportType = ((formData.get("type") as string) || "MONTHLY") as ReportType;
+  const reportMonth = (formData.get("reportMonth") as string) || "";
+  const miscCosts = Math.max(0, parseFloat((formData.get("miscCosts") as string) || "0") || 0);
+  const notes = ((formData.get("notes") as string) || "").trim();
 
   const ordersFile = formData.get("ordersFile") as File | null;
   const gstSaleFile = formData.get("gstSaleFile") as File | null;
@@ -57,6 +60,9 @@ export async function uploadAndProcessReport(formData: FormData) {
     fileName: `${ordersFile.name} + ${gstSaleFile.name}`,
     creditsUsed: creditCost,
     uploadSource: "WEB",
+    reportMonth: reportMonth || undefined,
+    miscCosts,
+    notes: notes || undefined,
   });
 
   const reportId = report._id.toString();
@@ -82,6 +88,8 @@ export async function uploadAndProcessReport(formData: FormData) {
           fileName: ordersFile.name,
           creditCost,
           meeshoFiles,
+          reportMonth: reportMonth || undefined,
+          miscCosts,
           storeBlob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
         });
       });
@@ -100,6 +108,8 @@ export async function uploadAndProcessReport(formData: FormData) {
       fileName: ordersFile.name,
       creditCost,
       meeshoFiles,
+      reportMonth: reportMonth || undefined,
+      miscCosts,
       storeBlob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
     });
 
@@ -122,7 +132,9 @@ export async function deleteReport(reportId: string) {
   const report = await Report.findOne({ _id: reportId, userId: session.user.id });
   if (!report) return { error: "Report not found" };
 
+  const { ProductSkuCost } = await import("@/models");
   await OrderLine.deleteMany({ reportId: report._id });
+  await ProductSkuCost.deleteMany({ reportId: report._id });
   await Report.findByIdAndDelete(reportId);
   revalidatePath("/dashboard/reports");
   return { success: true };

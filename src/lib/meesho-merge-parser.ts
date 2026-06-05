@@ -322,9 +322,10 @@ function applyOrderMeta(acc: OrderAccumulator, meta: MeeshoOrderMeta) {
   acc.orderDate = meta.orderDate ?? acc.orderDate;
   if (meta.state && meta.state !== "Unknown") acc.state = meta.state;
 
-  if (meta.listedPrice > 0 && meta.supplierPrice > 0) {
+  // Orders CSV commission only when GST file did not already supply it (avoid double-deduct)
+  if (acc.commission <= 0 && meta.listedPrice > 0 && meta.supplierPrice > 0) {
     const comm = meta.listedPrice - meta.supplierPrice;
-    if (comm > acc.commission) acc.commission = comm;
+    if (comm > 0) acc.commission = comm;
   }
   if (meta.supplierPrice > 0) acc.supplierPrice = meta.supplierPrice;
   if (meta.size) acc.size = meta.size;
@@ -346,7 +347,8 @@ function ingestGstSaleRow(map: Map<string, OrderAccumulator>, row: Record<string
   if (tax !== 0) acc.gst += Math.abs(tax);
   if (commission > 0) acc.commission += commission;
 
-  acc.sku = pick(row, ["hsn code", "sku", "product name"]) ?? acc.sku;
+  const gstSku = pick(row, ["sku", "catalog id", "style id", "product id"]);
+  if (gstSku) acc.sku = gstSku;
   acc.productName = pick(row, ["product name", "description"]) ?? acc.productName;
 
   const qty = parseInt(pick(row, ["quantity", "qty"]) ?? "0", 10);
@@ -518,6 +520,7 @@ export function parseMeeshoMergedReports(input: MeeshoMergeInput): {
     netOrders,
     returnCount: stats.returnCount || totals.returnCount,
     rtoCount: stats.rtoCount || totals.rtoCount,
+    deliveredCount: stats.deliveredCount,
     returnRate: grossOrders ? ((stats.returnCount || totals.returnCount) / grossOrders) * 100 : 0,
     rtoRate: grossOrders ? (stats.rtoCount / grossOrders) * 100 : 0,
     ordersByState: aggregateByState(lines),

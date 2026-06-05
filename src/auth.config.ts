@@ -1,5 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
-import { ACCESS_TTL_SEC } from "@/lib/jwt-refresh-edge";
+
+/** NextAuth JWT session length (30 days) — no separate refresh tokens. */
+export const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
 /** Edge-safe config (no Mongoose) — used by middleware */
 export const authConfig = {
@@ -7,15 +9,11 @@ export const authConfig = {
   pages: {
     signIn: "/login",
   },
-  session: { strategy: "jwt", maxAge: ACCESS_TTL_SEC },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SEC },
   providers: [],
   callbacks: {
     async jwt({ token, user }) {
-      const now = Math.floor(Date.now() / 1000);
-      if (user?.id) {
-        token.id = user.id;
-        token.accessExp = now + ACCESS_TTL_SEC;
-      }
+      if (user?.id) token.id = user.id;
       if (user && "role" in user) token.role = (user as { role?: string }).role;
       if (user && "credits" in user) token.credits = (user as { credits?: number }).credits;
       return token;

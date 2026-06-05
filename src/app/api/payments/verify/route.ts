@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { auth } from "@/auth";
+import { getAuthUserFromRequest, unauthorizedJson } from "@/lib/auth-jwt";
 import { connectDB } from "@/lib/mongodb";
 import { User, Payment, CreditTransaction, Coupon } from "@/models";
 import { verifyRazorpaySignature } from "@/lib/razorpay";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getAuthUserFromRequest(req);
+  if (!user) return unauthorizedJson();
 
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await req.json();
 
@@ -29,7 +27,7 @@ export async function POST(req: Request) {
   await connectDB();
   const payment = await Payment.findOne({
     razorpayOrderId: razorpay_order_id,
-    userId: session.user.id,
+    userId: user.id,
   });
 
   if (!payment) {
@@ -44,9 +42,9 @@ export async function POST(req: Request) {
   payment.razorpayPaymentId = razorpay_payment_id;
   await payment.save();
 
-  await User.findByIdAndUpdate(session.user.id, { $inc: { credits: payment.credits } });
+  await User.findByIdAndUpdate(user.id, { $inc: { credits: payment.credits } });
   await CreditTransaction.create({
-    userId: new mongoose.Types.ObjectId(session.user.id),
+    userId: new mongoose.Types.ObjectId(user.id),
     amount: payment.credits,
     type: "PURCHASE",
     description: `Razorpay purchase — ${payment.credits} credits`,

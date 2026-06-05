@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { auth } from "@/auth";
+import { getAuthUserFromRequest, unauthorizedJson } from "@/lib/auth-jwt";
 import { connectDB } from "@/lib/mongodb";
 import { CreditPackage, Coupon, Payment } from "@/models";
 import { createRazorpayOrder, getRazorpayKeyId, isRazorpayConfigured } from "@/lib/razorpay";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getAuthUserFromRequest(req);
+  if (!user) return unauthorizedJson();
 
   if (!isRazorpayConfigured()) {
     return NextResponse.json({ error: "Razorpay not configured" }, { status: 503 });
@@ -43,11 +41,11 @@ export async function POST(req: Request) {
     }
   }
 
-  const receipt = `sp_${session.user.id.slice(0, 8)}_${Date.now()}`;
+  const receipt = `sp_${user.id.slice(0, 8)}_${Date.now()}`;
   const order = await createRazorpayOrder(amountPaise, receipt);
 
   await Payment.create({
-    userId: new mongoose.Types.ObjectId(session.user.id),
+    userId: new mongoose.Types.ObjectId(user.id),
     packageId: pkg._id,
     razorpayOrderId: order.id,
     amountPaise,

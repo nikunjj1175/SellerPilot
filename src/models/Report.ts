@@ -18,6 +18,10 @@ export interface IReport {
   summary?: ReportSummary;
   insights?: AiInsightsResult;
   insightsAt?: Date;
+  /** YYYY-MM from upload wizard */
+  reportMonth?: string;
+  miscCosts?: number;
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +58,9 @@ const ReportSchema = new Schema<IReport>(
     summary: Schema.Types.Mixed,
     insights: Schema.Types.Mixed,
     insightsAt: Date,
+    reportMonth: { type: String, index: true },
+    miscCosts: { type: Number, default: 0 },
+    notes: String,
   },
   { timestamps: true }
 );
