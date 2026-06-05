@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminReportActions } from "@/components/admin/report-actions";
 import { formatINR } from "@/lib/utils";
 import type { ReportSummary } from "@/lib/meesho-parser";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { BarChart3, User as UserIcon } from "lucide-react";
 
 export default async function AdminReportsPage() {
@@ -17,20 +18,18 @@ export default async function AdminReportsPage() {
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
   return (
-    <div className="space-y-6 animate-fade-up">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">All reports</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          User-wise P&L uploads — {reports.length} recent
-        </p>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Reports"
+        description={`User-wise P&L uploads — ${reports.length} recent`}
+      />
 
       <div className="space-y-3">
         {reports.map((r) => {
           const s = r.summary as ReportSummary | undefined;
           const u = userMap[r.userId.toString()];
           return (
-            <Card key={r._id.toString()} className="transition-shadow hover:shadow-md">
+            <Card key={r._id.toString()} className="rounded-2xl border-border/80 shadow-sm transition-shadow hover:shadow-md">
               <CardHeader className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-2">
                 <div className="min-w-0">
                   <CardTitle className="text-base font-semibold truncate">{r.name}</CardTitle>
@@ -94,14 +93,6 @@ export default async function AdminReportsPage() {
                     </span>
                   )}
                   <div className="flex items-center gap-2">
-                    {r.status === "COMPLETED" && (
-                      <Link
-                        href={`/dashboard/reports/${r._id}`}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        View report
-                      </Link>
-                    )}
                     <AdminReportActions reportId={r._id.toString()} />
                   </div>
                 </div>

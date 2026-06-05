@@ -97,15 +97,6 @@ export function DashboardSidebar({ onNavigate }: { onNavigate?: () => void }) {
         Logout
       </button>
 
-      {session?.user?.role === "ADMIN" && (
-        <Link
-          href="/admin"
-          onClick={onNavigate}
-          className="mt-2 text-xs text-primary hover:underline px-3"
-        >
-          Admin panel
-        </Link>
-      )}
     </aside>
   );
 }

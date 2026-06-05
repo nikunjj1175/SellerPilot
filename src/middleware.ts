@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/auth.config";
+import { homePathForRole } from "@/lib/auth-redirect";
 import { NextResponse } from "next/server";
 import {
   verifyCronAuth,
@@ -65,13 +66,19 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard/reports", req.url));
   }
 
+  const isAdminUser = req.auth?.user?.role === "ADMIN";
+
+  if (isLoggedIn && isAdminUser && isDashboard) {
+    return NextResponse.redirect(new URL("/admin", req.url));
+  }
+
   const redirectTo = DASHBOARD_REDIRECTS[pathname];
-  if (redirectTo && isLoggedIn) {
+  if (redirectTo && isLoggedIn && !isAdminUser) {
     return NextResponse.redirect(new URL(redirectTo, req.url));
   }
 
   if (isLoggedIn && (pathname === "/login" || pathname === "/register")) {
-    return NextResponse.redirect(new URL("/dashboard/reports", req.url));
+    return NextResponse.redirect(new URL(homePathForRole(req.auth?.user?.role), req.url));
   }
 
   return NextResponse.next();
